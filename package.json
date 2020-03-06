@@ -1,0 +1,80 @@
+{
+  "name": "t-box-tester",
+  "version": "1.2.1",
+  "private": true,
+  "description": "A minimal Electron application",
+  "main": "public/electron.js",
+  "homepage": "./",
+  "repository": "https://github.com/electron/electron-quick-start",
+  "author": "GitHub",
+  "build": {
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "http://localhost:4000/electron/"
+      }
+    ],
+    "directories": {
+      "output": "release",
+      "app": "./"
+    },
+    "files": [
+      "./build/**/*",
+      "./public/electron.js",
+      "./package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true
+    }
+  },
+  "scripts": {
+    "dev": "concurrently \"set BROWSER=none&&react-scripts start\" \"wait-on http://localhost:3000 && electron .\"",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "dist": "electron-builder"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "dependencies": {
+    "@material-ui/core": "^4.9.5",
+    "@material-ui/icons": "^4.9.1",
+    "@testing-library/jest-dom": "^4.2.4",
+    "@testing-library/react": "^9.3.2",
+    "@testing-library/user-event": "^7.1.2",
+    "electron-is-dev": "^1.1.0",
+    "react": "^16.13.0",
+    "react-dom": "^16.13.0",
+    "react-router-dom": "^5.1.2",
+    "react-scripts": "3.4.0",
+    "electron-updater": "^4.1.2"
+  },
+  "devDependencies": {
+    "concurrently": "^5.1.0",
+    "electron": "^6.1.7",
+    "electron-builder": "^22.3.6",
+    "wait-on": "^4.0.1"
+  }
+}
