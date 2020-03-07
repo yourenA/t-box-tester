@@ -43,5 +43,13 @@
   background-color:#282c34 !important;
 }
 .test-page{
-  padding-top: 64px;
+  padding: 82px 24px;
+}
+.drivers{
+    margin-bottom: 18px;
+}
+.title{
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
 }

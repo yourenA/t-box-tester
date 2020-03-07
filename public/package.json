@@ -4,8 +4,8 @@
   "private": true,
   "description": "A minimal Electron application",
   "main": "public/electron.js",
-  "repository": "https://github.com/electron/electron-quick-start",
   "homepage": ".",
+  "repository": "https://github.com/electron/electron-quick-start",
   "author": "GitHub",
   "build": {
     "publish": [
