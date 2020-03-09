@@ -32,9 +32,6 @@ function createWindow() {
     if (isDev) {
         mainWindow.loadURL("http://localhost:3000/");
     } else {
-        // mainWindow.loadURL("http://182.61.56.51:4001/");
-
-        // mainWindow.loadURL(`file://${path.join(__dirname,'./../build/index.html')}`);
         mainWindow.loadURL(url.format({
             pathname: path.join(__dirname, './../build/index.html'), // 修改
             protocol: 'file:',

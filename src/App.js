@@ -7,10 +7,8 @@ import Home from './Home.js';
 import Pre from './Pre.js';
 
 import {
-    BrowserRouter as Router,
     Switch,
     Route,
-    useHistory
 } from "react-router-dom";
 
 class App extends PureComponent {
@@ -20,10 +18,10 @@ class App extends PureComponent {
         };
     }
     componentDidMount() {
+        console.log('componentDidMount in app')
     }
     render() {
         return (
-            <Router>
                 <div>
                     <Switch>
                         <Route exact path="/"  component={Home}>
@@ -32,7 +30,6 @@ class App extends PureComponent {
                         </Route>
                     </Switch>
                 </div>
-            </Router>
 
         );
     }

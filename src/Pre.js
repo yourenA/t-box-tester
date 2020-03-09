@@ -30,6 +30,7 @@ class App extends PureComponent {
     }
 
     componentDidMount() {
+        console.log('componentDidMount in pre')
         const that=this;
         ipcRenderer.send('getDrivers')
         ipcRenderer.on('getDriversFromMain', function(event, message) {
