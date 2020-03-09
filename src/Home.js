@@ -10,6 +10,7 @@ class App extends PureComponent {
     }
 
     componentDidMount() {
+        ipcRenderer.send('UpdateNow')
         console.log('componentDidMount in home')
 
         ipcRenderer.on('ping', function(event, message) {
@@ -27,7 +28,7 @@ class App extends PureComponent {
                         }}>
                             <img src={lottery} className="App-logo" alt="logo"/>
                             <p>
-                                老化抽屉预测试
+                                预测试
                             </p>
 
                         </div>

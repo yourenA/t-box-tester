@@ -22,6 +22,7 @@ import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import PlayCircleFilledWhiteIcon from '@material-ui/icons/PlayCircleFilledWhite';
 const {ipcRenderer} = window.electron;
+const {BrowserWindow} = window.electron.remote;
 const fs = window.electron.remote.require('fs')
 function Alert(props) {
     return <MuiAlert elevation={6} variant="filled" {...props} />;
@@ -42,6 +43,7 @@ class App extends PureComponent {
 
     componentDidMount() {
         console.log('componentDidMount in pre')
+        console.log('window.electron.remote',window.electron.remote.getCurrentWindow())
         const that=this;
         ipcRenderer.send('getDrivers')
         ipcRenderer.on('getDriversFromMain', function(event, message) {
@@ -272,8 +274,22 @@ class App extends PureComponent {
                             取消
                         </Button>
                         <Button onClick={()=>{
-                            this.setState({
-                                dialogOpen:false
+                            let win=new BrowserWindow({
+                                width: 1300,
+                                height: 700,
+                                minHeight: 700,
+                                center: true,
+                                webPreferences: {
+                                    devTools: true, //是否开启 DevTools
+                                    nodeIntegration: true
+                                },
+                                show: true,
+                                parent:window.electron.remote.getCurrentWindow(),
+                                modal: true,
+                            })
+                            win.loadURL( window.location.protocol+"//"+window.location.host+'#/about?name=10386')
+                            win.on('closed', function () {
+                                win = null
                             })
                         }} color="primary" autoFocus>
                             开始

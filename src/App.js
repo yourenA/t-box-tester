@@ -4,6 +4,7 @@ import stats from './067-stats.png';
 import lottery from './130-lottery.png';
 import './App.css';
 import Home from './Home.js';
+import About from './About.js';
 import Pre from './Pre.js';
 
 import {
@@ -27,6 +28,8 @@ class App extends PureComponent {
                         <Route exact path="/"  component={Home}>
                         </Route>
                         <Route path="/pre"  component={Pre}>
+                        </Route>
+                        <Route path="/about"  component={About}>
                         </Route>
                     </Switch>
                 </div>

@@ -3,6 +3,7 @@ const {app, BrowserWindow, ipcMain,dialog} = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev')
 const url = require('url');
+const handler = require('serve-handler');
 const autoUpdater = require("electron-updater").autoUpdater;
 const binding = require('sae_j2534_api');
 const device = new binding.J2534(); //实例化设备
@@ -30,12 +31,24 @@ function createWindow() {
 
     if (isDev) {
         mainWindow.loadURL("http://localhost:3000/");
+
     } else {
-        mainWindow.loadURL(url.format({
-            pathname: path.join(__dirname, './../build/index.html'), // 修改
-            protocol: 'file:',
-            slashes: true
-        }))
+        const http = require('http');
+        const server = http.createServer((request, response) => {
+            // You pass two more arguments for config and middleware
+            // More details here: https://github.com/zeit/serve-handler#options
+            return handler(request, response, {
+                public: 'resources/app.asar/build',
+            });
+        })
+        server.listen(10386, () => {
+            mainWindow.loadURL( 'http://localhost:10386/index.html')
+        });
+        // mainWindow.loadURL(url.format({
+        //     pathname: path.join(__dirname, './../build/index.html'), // 修改
+        //     protocol: 'file:',
+        //     slashes: true
+        // }))
     }
 
     // Open the DevTools.
