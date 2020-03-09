@@ -65,6 +65,7 @@
     "@testing-library/user-event": "^7.1.2",
     "electron-is-dev": "^1.1.0",
     "electron-updater": "^4.1.2",
+    "json2csv": "^4.5.4",
     "node-pre-gyp": "^0.14.0",
     "react": "^16.13.0",
     "react-dom": "^16.13.0",

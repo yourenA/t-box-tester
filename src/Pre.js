@@ -1,5 +1,6 @@
 import React, {PureComponent, Fragment} from 'react';
 import './App.css';
+import Button from '@material-ui/core/Button';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
@@ -12,7 +13,16 @@ import IconButton from '@material-ui/core/IconButton';
 import Divider from '@material-ui/core/Divider';
 import MenuIcon from '@material-ui/icons/ArrowBack';
 import Chip from '@material-ui/core/Chip';
+import SaveIcon from '@material-ui/icons/Save';
+import {parseAsync} from 'json2csv';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogContentText from '@material-ui/core/DialogContentText';
+import DialogTitle from '@material-ui/core/DialogTitle';
+import PlayCircleFilledWhiteIcon from '@material-ui/icons/PlayCircleFilledWhite';
 const {ipcRenderer} = window.electron;
+const fs = window.electron.remote.require('fs')
 function Alert(props) {
     return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
@@ -23,6 +33,7 @@ class App extends PureComponent {
         this.state = {
             drivers:[],
             errorOpen:false,
+            dialogOpen:false,
             errorName:'',
             tBox:[{name:'T-Box-1'},{name:'T-Box-2'},{name:'T-Box-3'},{name:'T-Box-4'},{name:'T-Box-5'}
             ,{name:'T-Box-6'},{name:'T-Box-7'},{name:'T-Box-8'}]
@@ -54,13 +65,35 @@ class App extends PureComponent {
                     }
                 }
             }else{
-                that.setState({
-                    errorOpen:true,
-                    errorName:item.name
-                })
+                ipcRenderer.send('open-dialog',{
+                    type:"error",
+                    title :"Error",
+                    message:'打开驱动失败'
+                });
+
 
             }
         });
+
+        ipcRenderer.on('exportCSVFromMain', (event, message) => {
+            let csvContent = [{"car": "Audi", "price": 40000, "color": "blue"}];
+            let ops = ['car', 'price', 'color'];
+            console.log('message',message)
+            parseAsync(csvContent, {ops}).then(csv => {
+                fs.writeFile(message , csv, err => {
+                    if (err) throw err;
+                    console.log('导出成功')
+                    // that.setState({
+                    //     exportOpen:true,
+                    // })
+                    ipcRenderer.send('open-dialog',{
+                        type:"info",
+                        title :"Success",
+                        message:'导出CSV成功'
+                    });
+                });
+            }).catch(err => console.error(err));
+        })
 
     }
     handleChangeCheck=(index,item)=>{
@@ -81,6 +114,13 @@ class App extends PureComponent {
 
 
 
+    }
+    exportCSV=()=>{
+        try {
+            ipcRenderer.send('exportCSV');
+        } catch (err) {
+            console.error(err);
+        }
     }
     render() {
         return (
@@ -178,6 +218,20 @@ class App extends PureComponent {
                             </FormGroup>
                     </div>
                     <Divider light />
+                    <div className="drivers" style={{marginTop:'12px'}}>
+                        <Button variant="contained" color="primary"  onClick={()=>{
+                            this.setState({
+                                dialogOpen:true
+                            })
+                        }} startIcon={<PlayCircleFilledWhiteIcon />}>
+                            开始测试
+                        </Button>
+                    </div>
+                    <div className="drivers" style={{marginTop:'12px'}}>
+                        <Button variant="contained" color="primary"  onClick={this.exportCSV} startIcon={<SaveIcon />}>
+                            导出CSV
+                        </Button>
+                    </div>
                 </div>
                 <Snackbar open={this.state.errorOpen}  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
                           autoHideDuration={6000} onClose={()=>{
@@ -187,6 +241,45 @@ class App extends PureComponent {
                 }}>
                     <Alert severity="error">打开驱动{this.state.errorName}失败</Alert>
                 </Snackbar>
+                <Snackbar open={this.state.exportOpen}  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                          autoHideDuration={6000} onClose={()=>{
+                    this.setState({
+                        exportOpen:false
+                    })
+                }}>
+                    <Alert severity="success">保存CSV成功</Alert>
+                </Snackbar>
+                <Dialog
+                    open={this.state.dialogOpen}
+                    onClose={()=>{
+                        this.setState({
+                            dialogOpen:false
+                        })
+                    }}
+                >
+                    <DialogTitle >{"确定开始测试吗? "}</DialogTitle>
+                    <DialogContent>
+                        <DialogContentText id="alert-dialog-description">
+                            请勿中途关闭应用 , 否则会发生不可预测错误 !
+                        </DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={()=>{
+                            this.setState({
+                                dialogOpen:false
+                            })
+                        }} color="secondary">
+                            取消
+                        </Button>
+                        <Button onClick={()=>{
+                            this.setState({
+                                dialogOpen:false
+                            })
+                        }} color="primary" autoFocus>
+                            开始
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             </div>
 
         );

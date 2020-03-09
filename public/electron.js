@@ -1,5 +1,5 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow, ipcMain} = require('electron')
+const {app, BrowserWindow, ipcMain,dialog} = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev')
 const url = require('url');
@@ -14,9 +14,8 @@ let mainWindow; //mainWindow主窗口
 function createWindow() {
     // Create the browser window.
     mainWindow = new BrowserWindow({
-        width: 900,
+        width: 1300,
         height: 700,
-        minWidth: 900,
         minHeight: 700,
         icon: './favicon.png',
         center: true,
@@ -67,6 +66,28 @@ function createWindow() {
         console.log('打开驱动', item.library)
         let openResult = device.open(item.library)
         mainWindow.webContents.send('openDriversFromMain', openResult, index, item)
+    });
+
+    //用户导出CSV
+    ipcMain.on('exportCSV', (e) => {
+        dialog.showSaveDialog({
+            title: '导出',
+            filters: [
+                {name: 'csv', extensions: ['csv']},
+            ]
+        }, res => {
+            console.log('res',res)
+            mainWindow.webContents.send('exportCSVFromMain', res);
+        })
+    });
+
+    //提示
+    ipcMain.on('open-dialog', (e,message) => {
+        dialog.showMessageBox({
+            type:message.type,
+            title:message.title,
+            message:message.message,
+        })
     });
 }
 

@@ -53,3 +53,9 @@
     font-size: 18px;
     font-weight: bold;
 }
+.MuiDialogContentText-root{
+    margin-bottom: 0 !important;
+}
+.MuiDialogTitle-root{
+    padding-bottom: 0px !important;
+}
