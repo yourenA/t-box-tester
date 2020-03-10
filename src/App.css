@@ -43,7 +43,7 @@
   background-color:#282c34 !important;
 }
 .test-page{
-  padding: 82px 24px;
+  padding: 12px;
 }
 .drivers{
     margin-bottom: 18px;
@@ -58,4 +58,28 @@
 }
 .MuiDialogTitle-root{
     padding-bottom: 0px !important;
+}
+.pre-box {
+    width: 100% !important;
+    margin: 0 !important;
+    margin-top: 64px !important;
+    min-height: calc(100vh - 64px);
+}
+.pre-box .MuiGrid-item{
+    padding:0!important;
+}
+.table-content{
+    background:#eee;
+    padding:16px;
+    box-sizing:border-box;
+    height:100%;
+}
+.table-checked{
+    background-color: cornsilk !important;
+}
+.null-dialog .MuiDialog-paperWidthSm{
+    background: transparent;
+    box-shadow:none;
+    color: #ffffff;
+    font-size: 18px;
 }

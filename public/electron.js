@@ -1,8 +1,9 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow, ipcMain,dialog} = require('electron')
+const {app, BrowserWindow, ipcMain,dialog,shell} = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev')
-const url = require('url');
+const os = require('os');
+const fs = require('fs');
 const handler = require('serve-handler');
 const autoUpdater = require("electron-updater").autoUpdater;
 const binding = require('sae_j2534_api');
@@ -11,6 +12,16 @@ const device = new binding.J2534(); //实例化设备
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow; //mainWindow主窗口
 
+let setting={
+    "protocol": 6,
+    "baudrate": 500000,
+    "flags": 0x00000800,
+    "interval":1000,
+    "filterType": 0x00000003,
+    "mask": 0x7FF,
+    "pattern": 0x7CD,
+    "flowControl": 0x74D
+}
 
 function createWindow() {
     // Create the browser window.
@@ -81,6 +92,21 @@ function createWindow() {
         mainWindow.webContents.send('openDriversFromMain', openResult, index, item)
     });
 
+    //用户开始测试
+    ipcMain.on('startTest', (e, tbox) => {
+        console.log('tbox', tbox)
+        console.log('setting',setting)
+        if (0 != device.connect(setting.protocol, setting.baudrate, setting.flags)) { //连接设备,0表示成功，connect(protocol, baudrate, flags)
+            console.log("device connect failure.");
+        }
+        let filter = device.startMsgFilter(setting.filterType, setting.mask, setting.pattern, setting.flowControl);//开始过滤消息（最后一个参数为流量控制消息ID），返回err和id
+        if (0 != filter.err) {
+            console.log("start msg filter failure.");
+            device.disconnect();//终止与协议通道的逻辑连接，0表示成功
+            device.close();//关闭与直通设备的连接，0表示成功
+        }
+    });
+
     //用户导出CSV
     ipcMain.on('exportCSV', (e) => {
         dialog.showSaveDialog({
@@ -91,6 +117,26 @@ function createWindow() {
         }, res => {
             console.log('res',res)
             mainWindow.webContents.send('exportCSVFromMain', res);
+        })
+    });
+
+    //打开本地文件
+    ipcMain.on('openFile', (e) => {
+        dialog.showOpenDialog({
+            title: '选择json文件',
+            filters: [
+                {name: 'json', extensions: ['json']},
+            ]
+        }, res => {
+            console.log('res',res);
+            if(res.length>0){
+                fs.readFile(res[0], "utf-8", function(error, data) {
+                    if (error) return console.log("读取文件失败,内容是" + error.message);
+                    console.log(data)
+                    setting={...setting,...JSON.parse(data)}
+                    mainWindow.webContents.send('getFileFromMain', setting);
+                });
+            }
         })
     });
 
