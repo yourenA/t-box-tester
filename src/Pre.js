@@ -22,6 +22,7 @@ import DialogContent from '@material-ui/core/DialogContent';
 import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import PlayCircleFilledWhiteIcon from '@material-ui/icons/PlayCircleFilledWhite';
+import BackupIcon from '@material-ui/icons/Backup';
 import DescriptionIcon from '@material-ui/icons/Description';
 import {withStyles, makeStyles} from '@material-ui/core/styles';
 import Table from '@material-ui/core/Table';
@@ -30,7 +31,9 @@ import TableCell from '@material-ui/core/TableCell';
 import TableContainer from '@material-ui/core/TableContainer';
 import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
+import Drawer from '@material-ui/core/Drawer';
 import filter from 'lodash/filter'
+import ReactJson from 'react-json-view'
 
 const StyledTableCell = withStyles(theme => ({
     head: {
@@ -81,15 +84,17 @@ class App extends PureComponent {
             startLoading:false,
             checkedAll: false,
             isTesting:false,
+            drawerOpen:false,
             errorName: '',
-            tBox: [{name: 'T-Box-1', key: 'key1', averageValue: '', maxValue: '', checked: false},
-                {name: 'T-Box-2', key: 'key2', averageValue: '', maxValue: '', checked: false},
-                {name: 'T-Box-3', key: 'key3', averageValue: '', maxValue: '', checked: false},
-                {name: 'T-Box-4', key: 'key4', averageValue: '', maxValue: '', checked: false},
-                {name: 'T-Box-5', key: 'key5', averageValue: '', maxValue: '', checked: false},
-                {name: 'T-Box-6', key: 'key6', averageValue: '', maxValue: '', checked: false},
-                {name: 'T-Box-7', key: 'key7', averageValue: '', maxValue: '', checked: false},
-                {name: 'T-Box-8', key: 'key8', averageValue: '', maxValue: '', checked: false},]
+            setting:{},
+            tBox: [{name: 'T-Box-1', index: 1, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-2', index: 2,  sw: '',avg: '', max: '', checked: false},
+                {name: 'T-Box-3', index: 3, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-4', index: 4, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-5', index: 5, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-6', index: 6, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-7', index: 7, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-8', index: 8, sw: '', avg: '', max: '', checked: false},]
         };
     }
 
@@ -98,31 +103,26 @@ class App extends PureComponent {
         console.log('window.electron.remote', window.electron.remote.getCurrentWindow())
         const that = this;
         ipcRenderer.send('getDrivers')
+        ipcRenderer.send('getSetting')
+        ipcRenderer.on('getSettingFromMain', function (event, setting) {
+            that.setState({
+                setting
+            })
+
+
+        });
         ipcRenderer.on('getDriversFromMain', function (event, message) {
             console.log('获取到的驱动', message)
-            const statusDrivers = [{
-                name: '驱动1',
-                vendor: 'vendor1',
-                library: 'library1'
-            }, {
-                name: '驱动2',
-                vendor: 'vendor2',
-                library: 'library2'
-            }, {
-                name: '驱动3',
-                vendor: 'vendor3',
-                library: 'library3'
-            }]
             that.setState({
-                drivers: statusDrivers,
+                drivers: message,
             })
         });
         ipcRenderer.on('openDriversFromMain', function (event, openResult, index, item) {
             console.log('打开驱动', openResult, index, item)
-            // that.setState({
-            //     selectDriver: item.library,
-            // })
-            if (openResult === -1) {
+            that.setState({
+                selectDriver: item.library,
+            })
+            if (openResult === 0) {
                 that.setState({
                     selectDriver: item.library,
                 })
@@ -132,12 +132,6 @@ class App extends PureComponent {
                     message: '打开驱动成功'
                 });
             } else {
-                ipcRenderer.send('open-dialog', {
-                    type: "error",
-                    title: "Error",
-                    message: '打开驱动失败'
-                });
-
             }
         });
 
@@ -149,9 +143,6 @@ class App extends PureComponent {
                 fs.writeFile(message, csv, err => {
                     if (err) throw err;
                     console.log('导出成功')
-                    // that.setState({
-                    //     exportOpen:true,
-                    // })
                     ipcRenderer.send('open-dialog', {
                         type: "info",
                         title: "Success",
@@ -161,9 +152,25 @@ class App extends PureComponent {
             }).catch(err => console.error(err));
         })
 
-        ipcRenderer.on('getFileFromMain', function (event, data) {
-            console.log('获取文件内容', data)
-        });
+        ipcRenderer.on('sendInfoFromMain', (event, item) => {
+            for(let i=0;i<that.state.tBox.length;i++){
+                if(that.state.tBox[i].index===item.index){
+                    that.state.tBox[i].sw=item.sw;
+                    that.state.tBox[i].avg=item.avg;
+                    that.state.tBox[i].max=item.max;
+                    that.setState({
+                        tBox:[...that.state.tBox]
+                    })
+                }
+            }
+        })
+        ipcRenderer.on('changeStart', (event) => {
+            that.setState({
+                isTesting:!that.state.isTesting
+            })
+        })
+
+
 
     }
 
@@ -244,20 +251,27 @@ class App extends PureComponent {
         })
     }
     startTest = () => {
-
+        for(let i=0;i<this.state.tBox.length;i++){
+            this.state.tBox[i].sw=''
+            this.state.tBox[i].avg=''
+            this.state.tBox[i].max=''
+        }
+        this.setState({
+            tBox:[...this.state.tBox]
+        })
         let afterFilter = filter(this.state.tBox, o => {
             return o.checked
         });
         let tbox = []
         for (let i = 0; i < afterFilter.length; i++) {
-            tbox.push(afterFilter[i].key)
+            tbox.push(afterFilter[i].index)
         }
-        console.log('tbox', tbox)
-        ipcRenderer.send('startTest', tbox);
         this.setState({
             dialogOpen: false,
             // startLoading: true,
             isTesting:true,
+        },function () {
+            ipcRenderer.send('startTest', tbox);
         })
     }
 
@@ -304,19 +318,48 @@ class App extends PureComponent {
                                                 <StyledTableCell component="th" scope="row">
                                                     {row.name}
                                                 </StyledTableCell>
-                                                <StyledTableCell align="left">{row.averageValue}</StyledTableCell>
-                                                <StyledTableCell align="left">{row.maxValue}</StyledTableCell>
+                                                <StyledTableCell align="left">{row.avg}</StyledTableCell>
+                                                <StyledTableCell align="left">{row.max}</StyledTableCell>
                                             </StyledTableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
                             </TableContainer>
+                            <div className="drivers" style={{marginTop: '12px',float:'right'}}>
+                                <Button      disabled={this.state.isTesting} variant="contained" color="primary" onClick={this.exportCSV}
+                                             startIcon={<SaveIcon/>}>
+                                    导出CSV
+                                </Button>
+                            </div>
                         </div>
                     </Grid>
                     <Grid item xs={4}>
                         <div className="test-page">
                             <div className="drivers">
-                                <p className={'title'}>可选驱动</p>
+                                <p className={'title'}>当前参数</p>
+                                <div style={{marginTop: '12px'}}>
+                                    <Button size="small"
+                                            style={{marginRight: '12px'}}
+                                            onClick={()=>{
+                                                this.setState({
+                                                    drawerOpen:!this.state.drawerOpen
+                                                })
+                                            }}
+                                            disabled={this.state.isTesting}
+                                            startIcon={<DescriptionIcon/>}>
+                                        查看当前配置
+                                    </Button>
+                                    <Button size="small" variant="contained" color="primary"
+                                            onClick={this.openFile}
+                                            disabled={this.state.isTesting}
+                                            startIcon={<BackupIcon/>}>
+                                        上传本地配置文件
+                                    </Button>
+                                </div>
+                            </div>
+                            <Divider light/>
+                            <div className="drivers">
+                                <p className={'title'}  style={{marginTop:'6px'}}>可选驱动</p>
                                 <div style={{marginTop: '12px'}}>
                                     {this.state.drivers.map((item, index) => {
                                         return (
@@ -372,7 +415,7 @@ class App extends PureComponent {
                                                         disabled={this.state.isTesting}
                                                         checked={item.checked}
                                                         onChange={() => this.handleChangeTBoxCheck(index)}
-                                                        value={item.key}
+                                                        value={item.index}
                                                         color="primary"
                                                     />
                                                 }
@@ -384,13 +427,8 @@ class App extends PureComponent {
                                 </FormGroup>
                             </div>
                             <Divider light/>
+
                             <div className="drivers" style={{marginTop: '12px'}}>
-                                <Button variant="contained" color="primary" style={{marginRight: '12px'}}
-                                        onClick={this.openFile}
-                                        disabled={this.state.isTesting}
-                                        startIcon={<DescriptionIcon/>}>
-                                    打开本地配置文件
-                                </Button>
                                 <Button variant="contained" color="secondary"
                                         disabled={this.state.isTesting}
                                         onClick={() => {
@@ -418,12 +456,6 @@ class App extends PureComponent {
                                     })
                                 }} startIcon={<PlayCircleFilledWhiteIcon/>}>
                                     开始测试
-                                </Button>
-                            </div>
-                            <div className="drivers" style={{marginTop: '12px'}}>
-                                <Button      disabled={this.state.isTesting} variant="contained" color="primary" onClick={this.exportCSV}
-                                        startIcon={<SaveIcon/>}>
-                                    导出CSV
                                 </Button>
                             </div>
                         </div>
@@ -506,6 +538,15 @@ class App extends PureComponent {
                     </DialogContent>
 
                 </Dialog>
+                <Drawer anchor="right" open={this.state.drawerOpen} onClose={()=>{
+                    this.setState({
+                        drawerOpen:!this.state.drawerOpen
+                    })
+                }}>
+                    <div className={'reactJson-box'}>
+                        <ReactJson  displayDataTypes={false}  src={this.state.setting} theme="monokai" name={false}/>
+                    </div>
+                </Drawer>
             </div>
 
         );

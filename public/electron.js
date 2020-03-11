@@ -1,5 +1,5 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow, ipcMain,dialog,shell} = require('electron')
+const {app, BrowserWindow, ipcMain, dialog, shell,Menu} = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev')
 const os = require('os');
@@ -8,19 +8,124 @@ const handler = require('serve-handler');
 const autoUpdater = require("electron-updater").autoUpdater;
 const binding = require('sae_j2534_api');
 const device = new binding.J2534(); //实例化设备
+const {
+    OpenCanDevice,
+    CloseCanDevice,
+    SetupDutPower,
+    GetDutInfo,
+    SelectDrawer
+} = require('./saeUtil')
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow; //mainWindow主窗口
 
-let setting={
+let template = [ {
+    label: '查看',
+    submenu: [{
+        label: '重载',
+        accelerator: 'CmdOrCtrl+R',
+        click: (item, focusedWindow) => {
+            if (focusedWindow) {
+                // 重载之后, 刷新并关闭所有之前打开的次要窗体
+                if (focusedWindow.id === 1) {
+                    BrowserWindow.getAllWindows().forEach(win => {
+                        if (win.id > 1) win.close()
+                    })
+                }
+                focusedWindow.reload()
+            }
+        }
+    }, {
+        label: '切换全屏',
+        accelerator: (() => {
+            if (process.platform === 'darwin') {
+                return 'Ctrl+Command+F'
+            } else {
+                return 'F11'
+            }
+        })(),
+        click: (item, focusedWindow) => {
+            if (focusedWindow) {
+                focusedWindow.setFullScreen(!focusedWindow.isFullScreen())
+            }
+        }
+    }, {
+        label: '切换开发者工具',
+        accelerator: (() => {
+            if (process.platform === 'darwin') {
+                return 'Alt+Command+I'
+            } else {
+                return 'Ctrl+Shift+I'
+            }
+        })(),
+        click: (item, focusedWindow) => {
+            if (focusedWindow) {
+                focusedWindow.toggleDevTools()
+            }
+        }
+    }]
+}, {
+    label: '窗口',
+    role: 'window',
+    submenu: [{
+        label: '最小化',
+        accelerator: 'CmdOrCtrl+M',
+        role: 'minimize'
+    }, {
+        label: '关闭',
+        accelerator: 'CmdOrCtrl+W',
+        role: 'close'
+    }, {
+        type: 'separator'
+    }, {
+        label: '重新打开窗口',
+        accelerator: 'CmdOrCtrl+Shift+T',
+        enabled: false,
+        key: 'reopenMenuItem',
+        click: () => {
+            app.emit('activate')
+        }
+    }]
+}]
+function addUpdateMenuItems (items, position) {
+    if (process.mas) return
+
+    const version = app.getVersion()
+    let updateItems = [{
+        label: `版本 ${version}`,
+        enabled: false
+    },{
+        label: '检查更新',
+        key: 'checkForUpdate',
+        click: () => {
+            autoUpdater.checkForUpdates();
+        }
+    }]
+
+    items.splice.apply(items, [position, 0].concat(updateItems))
+}
+const helpMenu = template[template.length - 1].submenu
+addUpdateMenuItems(helpMenu, 0)
+
+let setting = {
     "protocol": 6,
     "baudrate": 500000,
     "flags": 0x00000800,
-    "interval":1000,
+    "interval": 1000,
     "filterType": 0x00000003,
     "mask": 0x7FF,
     "pattern": 0x7CD,
-    "flowControl": 0x74D
+    "flowControl": 0x74D,
+    "CANID_FRAME_ECU": 0x7CD,
+    "CANID_FRAME_HOST": 0x74D,
+    "CANID_DRAWER_ECU": 0x7CD,
+    "CANID_DRAWER_HOST": 0x74D,
+    "limit": 1000, //限制电流
+    "SID_WRITE_DATA_BY_IDENTIFIER": 0x2E,
+    "DRAWER_DID_DUT_SWITCH": 0x0110,
+    "TX_MSG_TYPE": 0x00000001,
+    "START_OF_MESSAGE": 0x00000002,
+    "SID_READ_DATA_BY_IDENTIFIER": 0x22,
 }
 
 function createWindow() {
@@ -39,7 +144,6 @@ function createWindow() {
     })
     console.log('isDev', isDev)
     // and load the index.html of the app.
-
     if (isDev) {
         mainWindow.loadURL("http://localhost:3000/");
 
@@ -53,7 +157,7 @@ function createWindow() {
             });
         })
         server.listen(10386, () => {
-            mainWindow.loadURL( 'http://localhost:10386/index.html')
+            mainWindow.loadURL('http://localhost:10386/index.html')
         });
         // mainWindow.loadURL(url.format({
         //     pathname: path.join(__dirname, './../build/index.html'), // 修改
@@ -61,6 +165,9 @@ function createWindow() {
         //     slashes: true
         // }))
     }
+
+    const menu = Menu.buildFromTemplate(template)
+    Menu.setApplicationMenu(menu)
 
     // Open the DevTools.
     mainWindow.webContents.openDevTools()
@@ -76,6 +183,11 @@ function createWindow() {
         // createMbus()
     })
 
+    //用户获取setting
+    ipcMain.on('getSetting', (e) => {
+        console.log('用户获取setting')
+        mainWindow.webContents.send('getSettingFromMain', setting)
+    });
 
     //用户获取驱动
     ipcMain.on('getDrivers', (e) => {
@@ -88,22 +200,64 @@ function createWindow() {
     //用户打开驱动
     ipcMain.on('openDrivers', (e, index, item) => {
         console.log('打开驱动', item.library)
-        let openResult = device.open(item.library)
-        mainWindow.webContents.send('openDriversFromMain', openResult, index, item)
+        let result = OpenCanDevice({
+            ...setting,
+            library: item.library
+        }, (err) => {
+            console.log(err)
+            openDialog({
+                type: 'error',
+                title: 'Error',
+                message: err,
+            })
+        })
+        mainWindow.webContents.send('openDriversFromMain', result, index, item)
     });
 
     //用户开始测试
     ipcMain.on('startTest', (e, tbox) => {
         console.log('tbox', tbox)
-        console.log('setting',setting)
-        if (0 != device.connect(setting.protocol, setting.baudrate, setting.flags)) { //连接设备,0表示成功，connect(protocol, baudrate, flags)
-            console.log("device connect failure.");
-        }
-        let filter = device.startMsgFilter(setting.filterType, setting.mask, setting.pattern, setting.flowControl);//开始过滤消息（最后一个参数为流量控制消息ID），返回err和id
-        if (0 != filter.err) {
-            console.log("start msg filter failure.");
-            device.disconnect();//终止与协议通道的逻辑连接，0表示成功
-            device.close();//关闭与直通设备的连接，0表示成功
+        let result = SetupDutPower(setting, (err) => {
+            openDialog({
+                type: 'error',
+                title: 'Error',
+                message: err,
+            })
+            mainWindow.webContents.send('changeStart')
+        })
+        setTimeout(function () {
+            for (let i = 0; i < tbox.length; i++) {
+                setTimeout(function () {
+                    console.log('获取测试信息')
+                    mainWindow.webContents.send('sendInfoFromMain', {
+                        index: tbox[i],
+                        sw: i, avg: i, max: i
+                    })
+                }, 300)
+
+            }
+        }, 300)
+        if (result === 0) {
+            console.log('启动开始测试成功,开始获取测试信息')
+            for (let i = 0; i < tbox.length; i++) {
+                setTimeout(function () {
+                    GetDutInfo(tbox[i].index, setting, (sw, avg, max) => {
+                        console.log('获取测试信息', sw, avg, max)
+                        mainWindow.webContents.send('sendInfoFromMain', {
+                            index: tbox[i].index,
+                            sw, avg, max
+                        })
+
+                    }, (err) => {
+                        openDialog({
+                            type: 'error',
+                            title: 'Error',
+                            message: err,
+                        })
+                    })
+                }, 300)
+
+            }
         }
     });
 
@@ -115,7 +269,7 @@ function createWindow() {
                 {name: 'csv', extensions: ['csv']},
             ]
         }, res => {
-            console.log('res',res)
+            console.log('res', res)
             mainWindow.webContents.send('exportCSVFromMain', res);
         })
     });
@@ -128,26 +282,35 @@ function createWindow() {
                 {name: 'json', extensions: ['json']},
             ]
         }, res => {
-            console.log('res',res);
-            if(res.length>0){
-                fs.readFile(res[0], "utf-8", function(error, data) {
+            console.log('res', res);
+            if (res.length > 0) {
+                fs.readFile(res[0], "utf-8", function (error, data) {
                     if (error) return console.log("读取文件失败,内容是" + error.message);
                     console.log(data)
-                    setting={...setting,...JSON.parse(data)}
-                    mainWindow.webContents.send('getFileFromMain', setting);
+                    setting = {...setting, ...JSON.parse(data)}
+                    mainWindow.webContents.send('getSettingFromMain', setting);
+                    openDialog({
+                        type: 'info',
+                        title: 'success',
+                        message: '更新配置成功',
+                    })
                 });
             }
         })
     });
 
     //提示
-    ipcMain.on('open-dialog', (e,message) => {
-        dialog.showMessageBox({
-            type:message.type,
-            title:message.title,
-            message:message.message,
-        })
+    ipcMain.on('open-dialog', (e, message) => {
+        openDialog(message)
     });
+}
+
+function openDialog(message) {
+    dialog.showMessageBox({
+        type: message.type,
+        title: message.title,
+        message: message.message,
+    })
 }
 
 app.on('ready', createWindow)
