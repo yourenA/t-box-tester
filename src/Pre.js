@@ -34,6 +34,9 @@ import TableRow from '@material-ui/core/TableRow';
 import Drawer from '@material-ui/core/Drawer';
 import filter from 'lodash/filter'
 import ReactJson from 'react-json-view'
+import MenuItem from '@material-ui/core/MenuItem';
+import FormControl from '@material-ui/core/FormControl';
+import Select from '@material-ui/core/Select';
 
 const StyledTableCell = withStyles(theme => ({
     head: {
@@ -100,7 +103,6 @@ class App extends PureComponent {
 
     componentDidMount() {
         console.log('componentDidMount in pre')
-        console.log('window.electron.remote', window.electron.remote.getCurrentWindow())
         const that = this;
         ipcRenderer.send('getDrivers')
         ipcRenderer.send('getSetting')
@@ -113,18 +115,25 @@ class App extends PureComponent {
         });
         ipcRenderer.on('getDriversFromMain', function (event, message) {
             console.log('获取到的驱动', message)
+            // let arg=[{
+            //     library:'123',
+            //     name:'驱动一'
+            // },{
+            //     library:'1236',
+            //     name:'驱动二'
+            // }]
             that.setState({
                 drivers: message,
             })
         });
-        ipcRenderer.on('openDriversFromMain', function (event, openResult, index, item) {
-            console.log('打开驱动', openResult, index, item)
+        ipcRenderer.on('openDriversFromMain', function (event, openResult,library) {
+            console.log('打开驱动', openResult, library)
             that.setState({
-                selectDriver: item.library,
+                selectDriver: library,
             })
             if (openResult === 0) {
                 that.setState({
-                    selectDriver: item.library,
+                    selectDriver: library,
                 })
                 ipcRenderer.send('open-dialog', {
                     type: "info",
@@ -136,12 +145,30 @@ class App extends PureComponent {
         });
 
         ipcRenderer.on('exportCSVFromMain', (event, message) => {
-            let csvContent = [{"car": "Audi", "price": 40000, "color": "blue"}];
-            let ops = ['car', 'price', 'color'];
-            console.log('message', message)
+            let ops = ['name', 'sw', 'avg', 'max'];
+            let csvContent =[];
+            for(let i=0;i<that.state.tBox.length;i++){
+                if(that.state.tBox[i].checked){
+                    csvContent.push({
+                        name:that.state.tBox[i].name,
+                        sw:that.state.tBox[i].sw,
+                        avg:that.state.tBox[i].avg,
+                        max:that.state.tBox[i].max,
+                    })
+                }
+            }
+            console.log('csvContent',csvContent)
             parseAsync(csvContent, {ops}).then(csv => {
                 fs.writeFile(message, csv, err => {
-                    if (err) throw err;
+                    if (err) {
+                        console.log('err',err)
+                        ipcRenderer.send('open-dialog', {
+                            type: "error",
+                            title: "Error",
+                            message: err.toString()
+                        });
+                        return false
+                    };
                     console.log('导出成功')
                     ipcRenderer.send('open-dialog', {
                         type: "info",
@@ -174,26 +201,16 @@ class App extends PureComponent {
 
     }
 
-    handleChangeCheck = (index, item) => {
-        const that = this;
-        // if(item.checked){
-        if (item.library === this.state.selectDriver) {
-            console.log('已经打开驱动')
-            for (let i = 0; i < that.state.drivers.length; i++) {
-                if (i == index) {
-                    that.state.drivers[i].checked = !that.state.drivers[i].checked;
-                    that.setState({
-                        selectDriver: '',
-                        drivers: [...that.state.drivers],
-                    })
-                }
-            }
-        } else {
-            ipcRenderer.send('openDrivers', index, item);
+    handleChangeSelect = (event) => {
+        console.log(event)
+        if(this.state.selectDriver===event.target.value){
+            console.log('没有改变')
+            return false
         }
 
-
+        ipcRenderer.send('openDrivers', event.target.value);
     }
+
     handleChangeTBoxCheck = (index) => {
 
         for (let i = 0; i < this.state.tBox.length; i++) {
@@ -361,20 +378,19 @@ class App extends PureComponent {
                             <div className="drivers">
                                 <p className={'title'}  style={{marginTop:'6px'}}>可选驱动</p>
                                 <div style={{marginTop: '12px'}}>
-                                    {this.state.drivers.map((item, index) => {
-                                        return (
-                                            <Chip
-                                                style={{marginRight: '10px'}}
-                                                clickable
-                                                disabled={this.state.isTesting}
-                                                onClick={() => this.handleChangeCheck(index, item)}
-                                                key={index}
-                                                label={item.name}
-                                                color={item.library === this.state.selectDriver ? "primary" : "default"}
-                                            />
-                                        )
-                                    })}
-
+                                    <FormControl   style={{width:'100%'}}>
+                                        <Select
+                                            className={'library-select'}
+                                            style={{width:'100%'}}
+                                            disabled={this.state.isTesting}
+                                            value={this.state.selectDriver}
+                                            onChange={this.handleChangeSelect}
+                                        >
+                                            {this.state.drivers.map((item, index) => {
+                                                return  <MenuItem key={index} value={item.library}>{item.name}</MenuItem>
+                                            })}
+                                        </Select>
+                                    </FormControl>
                                 </div>
                                 {/*    <FormGroup row>
                                 {

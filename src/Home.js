@@ -10,12 +10,7 @@ class App extends PureComponent {
     }
 
     componentDidMount() {
-        ipcRenderer.send('UpdateNow')
         console.log('componentDidMount in home')
-
-        ipcRenderer.on('ping', function(event, message) {
-            console.log('主页接受到主进程发送过来的消息',message);  // Prints "whoooooooh!"
-        });
     }
 
     render() {

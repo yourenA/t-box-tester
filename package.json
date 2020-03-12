@@ -1,6 +1,6 @@
 {
   "name": "t-box-tester",
-  "version": "2.4.6",
+  "version": "3.0.0",
   "private": true,
   "description": "A minimal Electron application",
   "main": "public/electron.js",
@@ -10,7 +10,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "http://localhost:4000/electron/"
+        "url": "http://182.61.56.51:4000/electron/"
       }
     ],
     "directories": {

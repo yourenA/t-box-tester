@@ -131,7 +131,8 @@ let setting = {
 function createWindow() {
     // Create the browser window.
     mainWindow = new BrowserWindow({
-        width: 1300,
+        width: 1200,
+        minWidth: 1200,
         height: 700,
         minHeight: 700,
         icon: './favicon.png',
@@ -140,12 +141,14 @@ function createWindow() {
             devTools: true, //是否开启 DevTools
             nodeIntegration: true
         },
-        show: true
+        show: false
     })
     console.log('isDev', isDev)
     // and load the index.html of the app.
     if (isDev) {
         mainWindow.loadURL("http://localhost:3000/");
+        // Open the DevTools.
+        mainWindow.webContents.openDevTools()
 
     } else {
         const http = require('http');
@@ -169,8 +172,7 @@ function createWindow() {
     const menu = Menu.buildFromTemplate(template)
     Menu.setApplicationMenu(menu)
 
-    // Open the DevTools.
-    mainWindow.webContents.openDevTools()
+
 
     // Emitted when the window is closed.
     mainWindow.on('closed', function () {
@@ -198,11 +200,11 @@ function createWindow() {
     });
 
     //用户打开驱动
-    ipcMain.on('openDrivers', (e, index, item) => {
-        console.log('打开驱动', item.library)
+    ipcMain.on('openDrivers', (e, library) => {
+        console.log('打开驱动', library)
         let result = OpenCanDevice({
             ...setting,
-            library: item.library
+            library: library
         }, (err) => {
             console.log(err)
             openDialog({
@@ -211,7 +213,7 @@ function createWindow() {
                 message: err,
             })
         })
-        mainWindow.webContents.send('openDriversFromMain', result, index, item)
+        mainWindow.webContents.send('openDriversFromMain', result,library)
     });
 
     //用户开始测试
@@ -306,7 +308,7 @@ function createWindow() {
 }
 
 function openDialog(message) {
-    dialog.showMessageBox({
+    dialog.showMessageBox(mainWindow,{
         type: message.type,
         title: message.title,
         message: message.message,
@@ -336,31 +338,52 @@ function updateHandle() {
         updateNotAva: '现在使用的就是最新版本，不用更新',
     };
 
-    autoUpdater.setFeedURL('http://localhost:3000/electron/');
+    autoUpdater.setFeedURL('http://182.61.56.51:4000/electron/');
     autoUpdater.autoDownload = false //不强制下载
     autoUpdater.on('error', function (error) {
-        sendUpdateMessage(message.error)
+        sendUpdateMessage({
+            type:'error',
+            message:message.error
+        })
     });
     autoUpdater.on('checking-for-update', function () {
-        sendUpdateMessage(message.checking)
+        sendUpdateMessage({
+            type:'info',
+            message:message.checking
+        })
     });
     autoUpdater.on('update-available', function (info) {
-        sendUpdateMessage(message.updateAva) //
+        sendUpdateMessage({
+            type:'info',
+            message:message.updateAva
+        })
         autoUpdater.downloadUpdate().then(res => { //下载更新
-            sendUpdateMessage('下载更新')
+            sendUpdateMessage({
+                type:'success',
+                message:'下载更新'
+            })
         });
     });
     autoUpdater.on('update-not-available', function (info) {
-        sendUpdateMessage(message.updateNotAva)
+        sendUpdateMessage({
+            type:'success',
+            message:message.updateNotAva
+        })
     });
 
     // 更新下载进度事件
     autoUpdater.on('download-progress', function (progressObj) {
-        sendUpdateMessage(progressObj.percent) //progressObj里面包含有下载的进度
+        sendUpdateMessage({
+            type:'error',
+            message:'检测到新版本，正在下载: '+Number(progressObj.percent).toFixed(2)+" %"
+        })
     })
 
     autoUpdater.on('update-downloaded', function (event, releaseNotes, releaseName, releaseDate, updateUrl, quitAndUpdate) {
-        sendUpdateMessage('下载完成，开始更新')
+        sendUpdateMessage({
+            type:'success',
+            message:'下载完成，开始更新'
+        })
         autoUpdater.quitAndInstall();
 
         // ipcMain.on('isUpdateNow', (e, arg) => { //监听渲染发送过来的消息，比如用户按确定键后再开始跟新
@@ -380,8 +403,7 @@ function updateHandle() {
     });
 
 }
-
-function sendUpdateMessage(text) {
-    mainWindow.webContents.send('ping', text)
+function sendUpdateMessage(msg) {
+    mainWindow.webContents.send('updateMessage', msg)
 }
 
