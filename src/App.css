@@ -77,6 +77,10 @@
 .table-checked{
     background-color: cornsilk !important;
 }
+
+.error-row .MuiTableCell-root{
+    color: #ff0c05 !important;
+}
 .null-dialog .MuiDialog-paperWidthSm{
     background: transparent;
     box-shadow:none;
@@ -85,7 +89,24 @@
 }
 .reactJson-box{
     padding: 18px;
-    width: 300px;
+    width: 365px;
     height: 100vh;
     background: rgb(39, 40, 34);
+}
+.MuiTableCell-root {
+    padding: 8px!important;
+
+}
+.MuiTableCell-root.MuiTableCell-paddingCheckbox{
+    width: 24px !important;
+}
+.MuiTableCell-root .MuiCheckbox-root{
+    padding: 0 !important;
+}
+.checkForm {
+    display: flex;
+    justify-content: space-between;
+}
+.checkForm .MuiFormControlLabel-root{
+    width: 63px;
 }

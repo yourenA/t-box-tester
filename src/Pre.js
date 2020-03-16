@@ -12,7 +12,7 @@ import MuiAlert from '@material-ui/lab/Alert';
 import IconButton from '@material-ui/core/IconButton';
 import Divider from '@material-ui/core/Divider';
 import MenuIcon from '@material-ui/icons/ArrowBack';
-import Chip from '@material-ui/core/Chip';
+import CancelScheduleSendIcon from '@material-ui/icons/CancelScheduleSend';
 import SaveIcon from '@material-ui/icons/Save';
 import Grid from '@material-ui/core/Grid';
 import {parseAsync} from 'json2csv';
@@ -40,9 +40,8 @@ import Select from '@material-ui/core/Select';
 
 const StyledTableCell = withStyles(theme => ({
     head: {
-        backgroundColor: theme.palette.common.black,
+        backgroundColor:'#3f51b5',
         color: theme.palette.common.white,
-        padding: '8px 16px '
     },
     body: {
         fontSize: 14,
@@ -97,7 +96,12 @@ class App extends PureComponent {
                 {name: 'T-Box-5', index: 5, sw: '', avg: '', max: '', checked: false},
                 {name: 'T-Box-6', index: 6, sw: '', avg: '', max: '', checked: false},
                 {name: 'T-Box-7', index: 7, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-8', index: 8, sw: '', avg: '', max: '', checked: false},]
+                {name: 'T-Box-8', index: 8, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-9', index: 9, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-10', index: 10, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-11', index: 11, sw: '', avg: '', max: '', checked: false},
+                {name: 'T-Box-12', index: 12, sw: '', avg: '', max: '', checked: false},
+            ]
         };
     }
 
@@ -126,22 +130,22 @@ class App extends PureComponent {
                 drivers: message,
             })
         });
-        ipcRenderer.on('openDriversFromMain', function (event, openResult,library) {
-            console.log('打开驱动', openResult, library)
+        ipcRenderer.on('openDriversFromMain', function (event,library) {
+            console.log('打开驱动', library)
             that.setState({
                 selectDriver: library,
             })
-            if (openResult === 0) {
-                that.setState({
-                    selectDriver: library,
-                })
-                ipcRenderer.send('open-dialog', {
-                    type: "info",
-                    title: "Success",
-                    message: '打开驱动成功'
-                });
-            } else {
-            }
+            // if (openResult === 0) {
+            //     that.setState({
+            //         selectDriver: library,
+            //     })
+            //     ipcRenderer.send('open-dialog', {
+            //         type: "info",
+            //         title: "Success",
+            //         message: '打开驱动成功'
+            //     });
+            // } else {
+            // }
         });
 
         ipcRenderer.on('exportCSVFromMain', (event, message) => {
@@ -191,9 +195,10 @@ class App extends PureComponent {
                 }
             }
         })
-        ipcRenderer.on('changeStart', (event) => {
+        ipcRenderer.on('changeStart', (event,bool) => {
+            console.log('bool',bool)
             that.setState({
-                isTesting:!that.state.isTesting
+                isTesting:bool
             })
         })
 
@@ -313,28 +318,38 @@ class App extends PureComponent {
                     <Grid item xs={8}>
                         <div className={'table-content'}>
                             <TableContainer style={{maxHeight: ' calc(100vh - 88px)', border: '1px solid #333'}}>
-                                <Table stickyHeader>
+                                <Table  stickyHeader>
                                     <TableHead>
                                         <TableRow>
-                                            <StyledTableCell></StyledTableCell>
+                                            <StyledTableCell>
+                                                <Checkbox
+                                                    checked={this.state.checkedAll}
+                                                    onChange={this.checkedAll}
+                                                    disabled={this.state.isTesting}
+                                                />
+                                            </StyledTableCell>
                                             <StyledTableCell>名称</StyledTableCell>
-                                            <StyledTableCell align="left">平均值</StyledTableCell>
-                                            <StyledTableCell align="left">峰值</StyledTableCell>
+                                            <StyledTableCell align="left">电源开关状态</StyledTableCell>
+                                            <StyledTableCell align="left">平均电流</StyledTableCell>
+                                            <StyledTableCell align="left">峰值电流</StyledTableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {this.state.tBox.map(row => (
-                                            <StyledTableRow className={row.checked ? 'table-checked' : ''}
+                                        {this.state.tBox.map((row,index) => (
+                                            <StyledTableRow className={`${row.checked ? 'table-checked' : ''}  ${Number(row.sw)>8 ? 'error-row' : ''}`}
                                                             role="checkbox" key={row.name}>
-                                                <TableCell padding="checkbox">
+                                                <StyledTableCell padding="checkbox">
                                                     <Checkbox
+                                                        disabled={this.state.isTesting}
                                                         checked={row.checked}
-                                                        color="primary"
+                                                        onChange={() => this.handleChangeTBoxCheck(index)}
+                                                        value={row.index}
                                                     />
-                                                </TableCell>
+                                                </StyledTableCell>
                                                 <StyledTableCell component="th" scope="row">
                                                     {row.name}
                                                 </StyledTableCell>
+                                                <StyledTableCell align="left">{row.sw}</StyledTableCell>
                                                 <StyledTableCell align="left">{row.avg}</StyledTableCell>
                                                 <StyledTableCell align="left">{row.max}</StyledTableCell>
                                             </StyledTableRow>
@@ -392,35 +407,15 @@ class App extends PureComponent {
                                         </Select>
                                     </FormControl>
                                 </div>
-                                {/*    <FormGroup row>
-                                {
-                                    this.state.drivers.map((item,index)=>{
-                                        return     <FormControlLabel
-                                            key={index}
-                                            control={
-                                                <Checkbox
-                                                    onChange={()=>this.handleChangeCheck(index,item)}
-                                                    checked={item.checked}
-                                                    value={item.library}
-                                                    color="primary"
-                                                />
-                                            }
-                                            label={item.name}
-                                        />
-                                    })
-                                }
-
-                            </FormGroup>*/}
                             </div>
-                            <Divider light/>
-                            <div className="drivers">
+                            {/*<div className="drivers">
                                 <p className={'title'}>T-Box抽屉 <Checkbox
                                     checked={this.state.checkedAll}
                                     onChange={this.checkedAll}
                                     disabled={this.state.isTesting}
                                     color="primary"
                                 /></p>
-                                <FormGroup row>
+                                <FormGroup row className={'checkForm'}>
                                     {
                                         this.state.tBox.map((item, index) => {
                                             return <FormControlLabel
@@ -442,11 +437,12 @@ class App extends PureComponent {
 
                                 </FormGroup>
                             </div>
-                            <Divider light/>
+                            <Divider light/>*/}
 
                             <div className="drivers" style={{marginTop: '12px'}}>
-                                <Button variant="contained" color="secondary"
+                                <Button variant="contained" color="primary"
                                         disabled={this.state.isTesting}
+                                        style={{marginRight: '12px'}}
                                         onClick={() => {
                                     if (!this.state.selectDriver) {
                                         ipcRenderer.send('open-dialog', {
@@ -473,6 +469,17 @@ class App extends PureComponent {
                                 }} startIcon={<PlayCircleFilledWhiteIcon/>}>
                                     开始测试
                                 </Button>
+                                {
+                                    this.state.isTesting
+                                    &&
+                                    <Button variant="contained" color="secondary"
+                                            onClick={() => {
+                                                ipcRenderer.send('stopTest');
+                                            }} startIcon={<CancelScheduleSendIcon/>}>
+                                        结束测试
+                                    </Button>
+                                }
+
                             </div>
                         </div>
                     </Grid>

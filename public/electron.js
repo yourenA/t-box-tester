@@ -13,12 +13,13 @@ const {
     CloseCanDevice,
     SetupDutPower,
     GetDutInfo,
-    SelectDrawer
+    SelectDrawer,
+    sleep
 } = require('./saeUtil')
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow; //mainWindow主窗口
-
+let preLibrary;
 let template = [ {
     label: '查看',
     submenu: [{
@@ -110,22 +111,22 @@ addUpdateMenuItems(helpMenu, 0)
 let setting = {
     "protocol": 6,
     "baudrate": 500000,
-    "flags": 0x00000800,
+    "flags": "0x000008000000",
     "interval": 1000,
-    "filterType": 0x00000003,
-    "mask": 0x7FF,
-    "pattern": 0x7CD,
-    "flowControl": 0x74D,
-    "CANID_FRAME_ECU": 0x7CD,
-    "CANID_FRAME_HOST": 0x74D,
-    "CANID_DRAWER_ECU": 0x7CD,
-    "CANID_DRAWER_HOST": 0x74D,
+    "filterType": "0x00000003",
+    "mask": "0x7FF",
+    "pattern": "0x7CD",
+    "flowControl": "0x74D",
+    "CANID_FRAME_ECU": "0x7CD",
+    "CANID_FRAME_HOST": "0x74D",
+    "CANID_DRAWER_ECU": "0x7CD",
+    "CANID_DRAWER_HOST": "0x74D",
     "limit": 1000, //限制电流
-    "SID_WRITE_DATA_BY_IDENTIFIER": 0x2E,
-    "DRAWER_DID_DUT_SWITCH": 0x0110,
-    "TX_MSG_TYPE": 0x00000001,
-    "START_OF_MESSAGE": 0x00000002,
-    "SID_READ_DATA_BY_IDENTIFIER": 0x22,
+    "SID_WRITE_DATA_BY_IDENTIFIER": "0x2E",
+    "DRAWER_DID_DUT_SWITCH": "0x0110",
+    "TX_MSG_TYPE": "0x00000001",
+    "START_OF_MESSAGE": "0x00000002",
+    "SID_READ_DATA_BY_IDENTIFIER": "0x22",
 }
 
 function createWindow() {
@@ -133,8 +134,8 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200,
         minWidth: 1200,
-        height: 700,
-        minHeight: 700,
+        height: 740,
+        minHeight: 740,
         icon: './favicon.png',
         center: true,
         webPreferences: {
@@ -201,66 +202,68 @@ function createWindow() {
 
     //用户打开驱动
     ipcMain.on('openDrivers', (e, library) => {
-        console.log('打开驱动', library)
-        let result = OpenCanDevice({
-            ...setting,
-            library: library
-        }, (err) => {
-            console.log(err)
-            openDialog({
-                type: 'error',
-                title: 'Error',
-                message: err,
-            })
-        })
-        mainWindow.webContents.send('openDriversFromMain', result,library)
+        console.log('打开驱动', library);
+        preLibrary=library
+        mainWindow.webContents.send('openDriversFromMain',library)
     });
 
     //用户开始测试
-    ipcMain.on('startTest', (e, tbox) => {
+    ipcMain.on('startTest', async (e, tbox) => {
         console.log('tbox', tbox)
-        let result = SetupDutPower(setting, (err) => {
+        let openResult = OpenCanDevice({
+            ...setting,
+            library: preLibrary
+        }, async(err) => {
+            console.log(err)
+
             openDialog({
                 type: 'error',
                 title: 'Error',
                 message: err,
             })
-            mainWindow.webContents.send('changeStart')
+            console.log('打开驱动失败')
+            mainWindow.webContents.send('changeStart',false)
         })
-        setTimeout(function () {
-            for (let i = 0; i < tbox.length; i++) {
-                setTimeout(function () {
-                    console.log('获取测试信息')
-                    mainWindow.webContents.send('sendInfoFromMain', {
-                        index: tbox[i],
-                        sw: i, avg: i, max: i
-                    })
-                }, 300)
-
-            }
-        }, 300)
-        if (result === 0) {
+        let setupResult = SetupDutPower(setting, (err) => {
+            openDialog({
+                type: 'error',
+                title: 'Error',
+                message: err,
+            })
+            mainWindow.webContents.send('changeStart',false)
+        })
+        if (setupResult === 0) {
             console.log('启动开始测试成功,开始获取测试信息')
             for (let i = 0; i < tbox.length; i++) {
-                setTimeout(function () {
-                    GetDutInfo(tbox[i].index, setting, (sw, avg, max) => {
-                        console.log('获取测试信息', sw, avg, max)
-                        mainWindow.webContents.send('sendInfoFromMain', {
-                            index: tbox[i].index,
-                            sw, avg, max
-                        })
-
-                    }, (err) => {
-                        openDialog({
-                            type: 'error',
-                            title: 'Error',
-                            message: err,
-                        })
+                console.log(new Date())
+                GetDutInfo(tbox[i], setting, (sw, avg, max) => {
+                    console.log('获取测试信息', sw, avg, max)
+                    mainWindow.webContents.send('sendInfoFromMain', {
+                        index: tbox[i],
+                        sw, avg, max
                     })
-                }, 300)
+                    if(i===tbox.length-1){
+                        CloseCanDevice()
+                        mainWindow.webContents.send('changeStart',false)
+                    }
+
+                }, (err) => {
+                    openDialog({
+                        type: 'error',
+                        title: 'Error',
+                        message: err,
+                    })
+                })
+                await sleep(1000)
 
             }
         }
+    });
+
+    //用户导出CSV
+    ipcMain.on('stopTest', (e) => {
+        CloseCanDevice();
+        mainWindow.webContents.send('changeStart',false)
     });
 
     //用户导出CSV
@@ -374,7 +377,7 @@ function updateHandle() {
     // 更新下载进度事件
     autoUpdater.on('download-progress', function (progressObj) {
         sendUpdateMessage({
-            type:'error',
+            type:'info',
             message:'检测到新版本，正在下载: '+Number(progressObj.percent).toFixed(2)+" %"
         })
     })
