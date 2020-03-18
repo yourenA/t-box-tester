@@ -80,6 +80,7 @@
 
 .error-row .MuiTableCell-root{
     color: #ff0c05 !important;
+    font-weight: bold;
 }
 .null-dialog .MuiDialog-paperWidthSm{
     background: transparent;

@@ -1,5 +1,5 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow, ipcMain, dialog, shell,Menu} = require('electron')
+const {app, BrowserWindow, ipcMain, dialog, MenuItem ,Menu} = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev')
 const os = require('os');
@@ -109,24 +109,11 @@ const helpMenu = template[template.length - 1].submenu
 addUpdateMenuItems(helpMenu, 0)
 
 let setting = {
-    "protocol": 6,
-    "baudrate": 500000,
     "flags": "0x000008000000",
-    "interval": 1000,
-    "filterType": "0x00000003",
-    "mask": "0x7FF",
-    "pattern": "0x7CD",
-    "flowControl": "0x74D",
-    "CANID_FRAME_ECU": "0x7CD",
-    "CANID_FRAME_HOST": "0x74D",
-    "CANID_DRAWER_ECU": "0x7CD",
-    "CANID_DRAWER_HOST": "0x74D",
     "limit": 1000, //限制电流
-    "SID_WRITE_DATA_BY_IDENTIFIER": "0x2E",
-    "DRAWER_DID_DUT_SWITCH": "0x0110",
-    "TX_MSG_TYPE": "0x00000001",
-    "START_OF_MESSAGE": "0x00000002",
-    "SID_READ_DATA_BY_IDENTIFIER": "0x22",
+    "sw_min":1,
+    "sw_max":9,
+    "delay": 2000,
 }
 
 function createWindow() {
@@ -146,6 +133,8 @@ function createWindow() {
     })
     console.log('isDev', isDev)
     // and load the index.html of the app.
+    let exePath = path.dirname(app.getPath('exe'));
+    console.log('exePath:',exePath)
     if (isDev) {
         mainWindow.loadURL("http://localhost:3000/");
         // Open the DevTools.
@@ -173,8 +162,6 @@ function createWindow() {
     const menu = Menu.buildFromTemplate(template)
     Menu.setApplicationMenu(menu)
 
-
-
     // Emitted when the window is closed.
     mainWindow.on('closed', function () {
         mainWindow = null
@@ -189,7 +176,21 @@ function createWindow() {
     //用户获取setting
     ipcMain.on('getSetting', (e) => {
         console.log('用户获取setting')
-        mainWindow.webContents.send('getSettingFromMain', setting)
+        fs.exists(exePath+'/setting.json', function(exists) {
+            console.log(exists ? "文件存在" : "文件不存在");
+            if(exists){
+                fs.readFile(exePath+'/setting.json', "utf-8", function (error, data) {
+                    if (error) return console.log("读取文件失败" + error.message);
+                    console.log(data)
+                    setting = {...setting, ...JSON.parse(data)}
+                    mainWindow.webContents.send('getSettingFromMain', setting);
+                });
+            }else{
+                mainWindow.webContents.send('getSettingFromMain', setting)
+            }
+        })
+        mainWindow.webContents.send('getExePathFromMain',exePath)
+
     });
 
     //用户获取驱动
@@ -214,8 +215,7 @@ function createWindow() {
             ...setting,
             library: preLibrary
         }, async(err) => {
-            console.log(err)
-
+            global.isTesting=false;
             openDialog({
                 type: 'error',
                 title: 'Error',
@@ -224,7 +224,12 @@ function createWindow() {
             console.log('打开驱动失败')
             mainWindow.webContents.send('changeStart',false)
         })
+        if(openResult!==0){
+            return  false
+        }
+        let start_at=Date.now()
         let setupResult = SetupDutPower(setting, (err) => {
+            global.isTesting=false;
             openDialog({
                 type: 'error',
                 title: 'Error',
@@ -232,37 +237,48 @@ function createWindow() {
             })
             mainWindow.webContents.send('changeStart',false)
         })
+        let end_at=Date.now()
+        console.log('start_at',start_at)
+        console.log('end_at',end_at)
+        console.log('end_at-start_at',end_at-start_at)
+        console.log('delay',setting.delay)
+        await sleep(setting.delay-(end_at-start_at))
         if (setupResult === 0) {
             console.log('启动开始测试成功,开始获取测试信息')
+            global.isTesting=true;
             for (let i = 0; i < tbox.length; i++) {
                 console.log(new Date())
-                GetDutInfo(tbox[i], setting, (sw, avg, max) => {
-                    console.log('获取测试信息', sw, avg, max)
-                    mainWindow.webContents.send('sendInfoFromMain', {
-                        index: tbox[i],
-                        sw, avg, max
-                    })
-                    if(i===tbox.length-1){
-                        CloseCanDevice()
-                        mainWindow.webContents.send('changeStart',false)
-                    }
+                if(global.isTesting){
+                    GetDutInfo(tbox[i], setting, (sw, avg, max) => {
+                        console.log('获取测试信息', sw, avg, max)
+                        mainWindow.webContents.send('sendInfoFromMain', {
+                            index: tbox[i],
+                            sw, avg, max
+                        })
+                        if(i===tbox.length-1){
+                            CloseCanDevice()
+                            global.isTesting=false;
+                            mainWindow.webContents.send('changeStart',false)
+                        }
 
-                }, (err) => {
-                    openDialog({
-                        type: 'error',
-                        title: 'Error',
-                        message: err,
+                    }, (err) => {
+                        openDialog({
+                            type: 'error',
+                            title: 'Error',
+                            message: err,
+                        })
                     })
-                })
-                await sleep(1000)
+                }
+
 
             }
         }
     });
 
-    //用户导出CSV
+    //用户停止测试
     ipcMain.on('stopTest', (e) => {
         CloseCanDevice();
+        global.isTesting=false;
         mainWindow.webContents.send('changeStart',false)
     });
 

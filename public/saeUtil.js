@@ -78,6 +78,8 @@ const device = new binding.J2534();
 var frameFilter;
 var drawerFilter;
 
+global.isTesting=false;
+
 /*
  *  打开Can设备
  */
@@ -112,6 +114,7 @@ function OpenCanDevice(setting, errCb) {
         return -1;
     }
     console.log('打开Can设备成功')
+    console.log(device)
     return 0;
 }
 
@@ -119,6 +122,7 @@ function OpenCanDevice(setting, errCb) {
  *  关闭Can设备
  */
 function CloseCanDevice() {
+    console.log('frameFilter',frameFilter)
     if (frameFilter) {
         device.stopMsgFilter(frameFilter.id);
     }
@@ -192,7 +196,7 @@ function SetupDutPower(setting, errCb) {
  * index, DUT索引，范围 1 - 12
  * cb, 获取成功后回调函数
  */
-function GetDutInfo(index, setting, cb, errCb) {
+ function  GetDutInfo(index, setting, cb, errCb) {
     var request = Buffer.from([SID_READ_DATA_BY_IDENTIFIER, 0x01, 0x10 + index]);
     /* 发送设置请求 */
     // var ret = device.send(CANID_DRAWER_HOST, request, 1000);
@@ -205,9 +209,9 @@ function GetDutInfo(index, setting, cb, errCb) {
     /* 等待回复 */
     while (1) {
         var math=Math.random();
-        if(math>0.8){
+        if(math>0.5){
             cb((math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
-            errCb(`T-Box-${index} 数据出错`)
+            // errCb(`T-Box-${index} 数据出错`)
             return -1;
         }
         if(math>0.2){

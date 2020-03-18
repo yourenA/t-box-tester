@@ -37,7 +37,7 @@ import ReactJson from 'react-json-view'
 import MenuItem from '@material-ui/core/MenuItem';
 import FormControl from '@material-ui/core/FormControl';
 import Select from '@material-ui/core/Select';
-
+var Mousetrap = require('mousetrap');
 const StyledTableCell = withStyles(theme => ({
     head: {
         backgroundColor:'#3f51b5',
@@ -110,22 +110,16 @@ class App extends PureComponent {
         const that = this;
         ipcRenderer.send('getDrivers')
         ipcRenderer.send('getSetting')
+        ipcRenderer.on('getExePathFromMain', function (event, exePath) {
+            console.log('exePath',exePath)
+        });
         ipcRenderer.on('getSettingFromMain', function (event, setting) {
             that.setState({
                 setting
             })
-
-
         });
         ipcRenderer.on('getDriversFromMain', function (event, message) {
             console.log('获取到的驱动', message)
-            // let arg=[{
-            //     library:'123',
-            //     name:'驱动一'
-            // },{
-            //     library:'1236',
-            //     name:'驱动二'
-            // }]
             that.setState({
                 drivers: message,
             })
@@ -202,7 +196,38 @@ class App extends PureComponent {
             })
         })
 
+        Mousetrap.bind('ctrl+d', () => {
+            if(this.state.isTesting){
+                return;
+            }
+            if (!this.state.selectDriver) {
+                ipcRenderer.send('open-dialog', {
+                    type: "error",
+                    title: "Error",
+                    message: '请先选择驱动'
+                });
+                return
+            }
+            let afterFilter = filter(this.state.tBox, o => {
+                return o.checked
+            });
+            if (afterFilter.length === 0) {
+                ipcRenderer.send('open-dialog', {
+                    type: "error",
+                    title: "Error",
+                    message: '请先选择T-Box'
+                });
+                return
+            }
+            this.startTest()
+        })
 
+        Mousetrap.bind('ctrl+e', () => {
+            if(this.state.isTesting){
+                return;
+            }
+            this.exportCSV()
+        })
 
     }
 
@@ -336,7 +361,7 @@ class App extends PureComponent {
                                     </TableHead>
                                     <TableBody>
                                         {this.state.tBox.map((row,index) => (
-                                            <StyledTableRow className={`${row.checked ? 'table-checked' : ''}  ${Number(row.sw)>8 ? 'error-row' : ''}`}
+                                            <StyledTableRow className={`${row.checked ? 'table-checked' : ''}  ${(Number(row.sw)<this.state.setting.sw_min || Number(row.sw)>this.state.setting.sw_max) ? 'error-row' : ''}`}
                                                             role="checkbox" key={row.name}>
                                                 <StyledTableCell padding="checkbox">
                                                     <Checkbox
@@ -357,12 +382,6 @@ class App extends PureComponent {
                                     </TableBody>
                                 </Table>
                             </TableContainer>
-                            <div className="drivers" style={{marginTop: '12px',float:'right'}}>
-                                <Button      disabled={this.state.isTesting} variant="contained" color="primary" onClick={this.exportCSV}
-                                             startIcon={<SaveIcon/>}>
-                                    导出CSV
-                                </Button>
-                            </div>
                         </div>
                     </Grid>
                     <Grid item xs={4}>
@@ -371,6 +390,7 @@ class App extends PureComponent {
                                 <p className={'title'}>当前参数</p>
                                 <div style={{marginTop: '12px'}}>
                                     <Button size="small"
+                                            title={'如果需要自定义配置，请在exe安装目录新建setting.json文件'}
                                             style={{marginRight: '12px'}}
                                             onClick={()=>{
                                                 this.setState({
@@ -381,12 +401,12 @@ class App extends PureComponent {
                                             startIcon={<DescriptionIcon/>}>
                                         查看当前配置
                                     </Button>
-                                    <Button size="small" variant="contained" color="primary"
+                                  {/*  <Button size="small" variant="contained" color="primary"
                                             onClick={this.openFile}
                                             disabled={this.state.isTesting}
                                             startIcon={<BackupIcon/>}>
                                         上传本地配置文件
-                                    </Button>
+                                    </Button>*/}
                                 </div>
                             </div>
                             <Divider light/>
@@ -408,41 +428,11 @@ class App extends PureComponent {
                                     </FormControl>
                                 </div>
                             </div>
-                            {/*<div className="drivers">
-                                <p className={'title'}>T-Box抽屉 <Checkbox
-                                    checked={this.state.checkedAll}
-                                    onChange={this.checkedAll}
-                                    disabled={this.state.isTesting}
-                                    color="primary"
-                                /></p>
-                                <FormGroup row className={'checkForm'}>
-                                    {
-                                        this.state.tBox.map((item, index) => {
-                                            return <FormControlLabel
-                                                key={index}
-                                                labelPlacement="bottom"
-                                                control={
-                                                    <Checkbox
-                                                        disabled={this.state.isTesting}
-                                                        checked={item.checked}
-                                                        onChange={() => this.handleChangeTBoxCheck(index)}
-                                                        value={item.index}
-                                                        color="primary"
-                                                    />
-                                                }
-                                                label={item.name}
-                                            />
-                                        })
-                                    }
-
-                                </FormGroup>
-                            </div>
-                            <Divider light/>*/}
-
                             <div className="drivers" style={{marginTop: '12px'}}>
                                 <Button variant="contained" color="primary"
                                         disabled={this.state.isTesting}
                                         style={{marginRight: '12px'}}
+                                        title={'ctrl+d 快捷键可以开始测试'}
                                         onClick={() => {
                                     if (!this.state.selectDriver) {
                                         ipcRenderer.send('open-dialog', {
@@ -469,16 +459,12 @@ class App extends PureComponent {
                                 }} startIcon={<PlayCircleFilledWhiteIcon/>}>
                                     开始测试
                                 </Button>
-                                {
-                                    this.state.isTesting
-                                    &&
-                                    <Button variant="contained" color="secondary"
-                                            onClick={() => {
-                                                ipcRenderer.send('stopTest');
-                                            }} startIcon={<CancelScheduleSendIcon/>}>
-                                        结束测试
-                                    </Button>
-                                }
+                                <Button
+                                    title={'ctrl+e 快捷键可以导出CSV'}
+                                    disabled={this.state.isTesting} variant="contained" color="primary" onClick={this.exportCSV}
+                                             startIcon={<SaveIcon/>}>
+                                    导出CSV
+                                </Button>
 
                             </div>
                         </div>
@@ -549,17 +535,6 @@ class App extends PureComponent {
                             开始
                         </Button>*/}
                     </DialogActions>
-                </Dialog>
-                <Dialog
-                    open={this.state.startLoading}
-                    onClose={() => {
-                    }}
-                    className={'null-dialog'}
-                >
-                    <DialogContent>
-                        <span>正在测试...</span>
-                    </DialogContent>
-
                 </Dialog>
                 <Drawer anchor="right" open={this.state.drawerOpen} onClose={()=>{
                     this.setState({

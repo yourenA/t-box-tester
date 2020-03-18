@@ -1,6 +1,6 @@
 {
   "name": "t-box-tester",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "private": true,
   "description": "A minimal Electron application",
   "main": "public/electron.js",
@@ -69,6 +69,7 @@
     "express": "^4.17.1",
     "json2csv": "^4.5.4",
     "lodash": "^4.17.15",
+    "mousetrap": "^1.6.5",
     "node-pre-gyp": "^0.14.0",
     "react": "^16.13.0",
     "react-dom": "^16.13.0",
