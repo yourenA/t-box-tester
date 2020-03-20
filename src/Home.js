@@ -27,7 +27,10 @@ class App extends PureComponent {
                             </p>
 
                         </div>
-                        <div className='item'>
+                        <div className='item'
+                             onClick={() => {
+                                 this.props.history.push("/formal");
+                             }}>
                             <img src={stats} className="App-logo" alt="logo"/>
                             <p>
                                 老化测试

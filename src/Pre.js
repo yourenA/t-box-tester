@@ -1,5 +1,6 @@
 import React, {PureComponent, Fragment} from 'react';
 import './App.css';
+import moment from 'moment';
 import Button from '@material-ui/core/Button';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
@@ -89,18 +90,18 @@ class App extends PureComponent {
             drawerOpen:false,
             errorName: '',
             setting:{},
-            tBox: [{name: 'T-Box-1', index: 1, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-2', index: 2,  sw: '',avg: '', max: '', checked: false},
-                {name: 'T-Box-3', index: 3, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-4', index: 4, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-5', index: 5, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-6', index: 6, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-7', index: 7, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-8', index: 8, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-9', index: 9, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-10', index: 10, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-11', index: 11, sw: '', avg: '', max: '', checked: false},
-                {name: 'T-Box-12', index: 12, sw: '', avg: '', max: '', checked: false},
+            tBox: [{name: 'T-Box-1', index: 1, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-2', index: 2,  sw: '',avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-3', index: 3, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-4', index: 4, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-5', index: 5, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-6', index: 6, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-7', index: 7, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-8', index: 8, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-9', index: 9, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-10', index: 10, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-11', index: 11, sw: '', avg: '', max: '', checked: false,time:''},
+                {name: 'T-Box-12', index: 12, sw: '', avg: '', max: '', checked: false,time:''},
             ]
         };
     }
@@ -143,20 +144,21 @@ class App extends PureComponent {
         });
 
         ipcRenderer.on('exportCSVFromMain', (event, message) => {
-            let ops = ['name', 'sw', 'avg', 'max'];
+            let opts = {fields :['name', 'time','sw', 'avg(mA)', 'max(mA)']};
             let csvContent =[];
             for(let i=0;i<that.state.tBox.length;i++){
                 if(that.state.tBox[i].checked){
                     csvContent.push({
                         name:that.state.tBox[i].name,
+                        time:that.state.tBox[i].time,
                         sw:that.state.tBox[i].sw,
-                        avg:that.state.tBox[i].avg,
-                        max:that.state.tBox[i].max,
+                        [`avg(mA)`]:that.state.tBox[i].avg,
+                        [`max(mA)`]:that.state.tBox[i].max,
                     })
                 }
             }
             console.log('csvContent',csvContent)
-            parseAsync(csvContent, {ops}).then(csv => {
+            parseAsync(csvContent, opts).then(csv => {
                 fs.writeFile(message, csv, err => {
                     if (err) {
                         console.log('err',err)
@@ -180,6 +182,7 @@ class App extends PureComponent {
         ipcRenderer.on('sendInfoFromMain', (event, item) => {
             for(let i=0;i<that.state.tBox.length;i++){
                 if(that.state.tBox[i].index===item.index){
+                    that.state.tBox[i].time=moment(item.time).format('HH:mm:ss');
                     that.state.tBox[i].sw=item.sw;
                     that.state.tBox[i].avg=item.avg;
                     that.state.tBox[i].max=item.max;
@@ -300,6 +303,7 @@ class App extends PureComponent {
     startTest = () => {
         for(let i=0;i<this.state.tBox.length;i++){
             this.state.tBox[i].sw=''
+            this.state.tBox[i].time=''
             this.state.tBox[i].avg=''
             this.state.tBox[i].max=''
         }
@@ -354,9 +358,10 @@ class App extends PureComponent {
                                                 />
                                             </StyledTableCell>
                                             <StyledTableCell>名称</StyledTableCell>
+                                            <StyledTableCell align="left">时间</StyledTableCell>
                                             <StyledTableCell align="left">电源开关状态</StyledTableCell>
-                                            <StyledTableCell align="left">平均电流</StyledTableCell>
-                                            <StyledTableCell align="left">峰值电流</StyledTableCell>
+                                            <StyledTableCell align="left">平均电流(mA)</StyledTableCell>
+                                            <StyledTableCell align="left">峰值电流(mA)</StyledTableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
@@ -374,6 +379,7 @@ class App extends PureComponent {
                                                 <StyledTableCell component="th" scope="row">
                                                     {row.name}
                                                 </StyledTableCell>
+                                                <StyledTableCell align="left">{row.time}</StyledTableCell>
                                                 <StyledTableCell align="left">{row.sw}</StyledTableCell>
                                                 <StyledTableCell align="left">{row.avg}</StyledTableCell>
                                                 <StyledTableCell align="left">{row.max}</StyledTableCell>
@@ -457,13 +463,13 @@ class App extends PureComponent {
                                         dialogOpen: true
                                     })
                                 }} startIcon={<PlayCircleFilledWhiteIcon/>}>
-                                    开始测试
+                                    开始测试(ctrl+d)
                                 </Button>
                                 <Button
                                     title={'ctrl+e 快捷键可以导出CSV'}
                                     disabled={this.state.isTesting} variant="contained" color="primary" onClick={this.exportCSV}
                                              startIcon={<SaveIcon/>}>
-                                    导出CSV
+                                    导出CSV(ctrl+e)
                                 </Button>
 
                             </div>

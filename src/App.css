@@ -105,9 +105,34 @@
     padding: 0 !important;
 }
 .checkForm {
+    padding-bottom: 20px;
+    width: 450px;
     display: flex;
     justify-content: space-between;
 }
 .checkForm .MuiFormControlLabel-root{
     width: 63px;
+}
+.drawers{
+    /*display: flex;*/
+    /*flex-wrap: wrap;*/
+    /*justify-content: space-between;*/
+}
+.drawers button{
+    margin-bottom: 12px;
+    margin-right: 12px;
+}
+
+@media (min-width: 600px){
+    .MuiTab-root {
+        min-width: 100px !important;
+    }
+}
+
+.MuiTab-wrapper{
+    color: #ffffff;
+    font-weight: bold;
+}
+.MuiTab-textColorInherit.Mui-selected{
+    background: rgb(220, 0, 78);
 }

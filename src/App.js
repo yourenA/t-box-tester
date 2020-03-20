@@ -6,7 +6,7 @@ import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import './App.css';
 import Home from './Home.js';
-import About from './About.js';
+import Formal from './Formal.js';
 import Pre from './Pre.js';
 
 import {
@@ -43,7 +43,7 @@ class App extends PureComponent {
                         </Route>
                         <Route path="/pre"  component={Pre}>
                         </Route>
-                        <Route path="/about"  component={About}>
+                        <Route path="/formal"  component={Formal}>
                         </Route>
                     </Switch>
                     <Dialog

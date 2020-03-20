@@ -196,7 +196,7 @@ function SetupDutPower(setting, errCb) {
  * index, DUT索引，范围 1 - 12
  * cb, 获取成功后回调函数
  */
- function  GetDutInfo(index, setting, cb, errCb) {
+ function  GetDutInfo(index, cb, errCb) {
     var request = Buffer.from([SID_READ_DATA_BY_IDENTIFIER, 0x01, 0x10 + index]);
     /* 发送设置请求 */
     // var ret = device.send(CANID_DRAWER_HOST, request, 1000);
@@ -210,14 +210,14 @@ function SetupDutPower(setting, errCb) {
     while (1) {
         var math=Math.random();
         if(math>0.5){
-            cb((math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
+            cb(Date.now(),(math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
             // errCb(`T-Box-${index} 数据出错`)
             return -1;
         }
         if(math>0.2){
             continue;
         }
-        cb((math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
+        cb(Date.now(),(math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
         return 0;
 
 
@@ -258,19 +258,23 @@ function SetupDutPower(setting, errCb) {
  * 选择通信抽屉
  * index, 抽屉索引，范围 0 - 20, 0 为全关闭
  */
-function SelectDrawer(index) {
+function SelectDrawer(index,successCb,errCb,) {
     var request = Buffer.from([SID_WRITE_DATA_BY_IDENTIFIER, FRAME_DID_DRAWER_SELECT >> 8, FRAME_DID_DRAWER_SELECT, index]);
     /* 发送设置请求 */
-    var ret = device.send(CANID_FRAME_HOST, request, 1000);
+    // var ret = device.send(CANID_FRAME_HOST, request, 1000);
+    var ret = 0;
     if (0 != ret) {
         console.log("Send request failure %d.", ret);
+        errCb(`RSend request failure ${ret}`)
         return -1;
     }
+    return 0;
     /* 等待回复 */
     while (1) {
         var respond = device.recv(1000);
         if (0 != respond.err) {
             console.log("Recv respond failure %d.", respond.err);
+            errCb(`Recv respond failure ${respond.err}`)
             return -1;
         }
 
@@ -280,14 +284,17 @@ function SelectDrawer(index) {
 
         if (respond.payload.length != 3) {
             console.log("Invalid respond length %d", respond.payload.length);
+            errCb(`Invalid respond length ${respond.payload.length}`)
             return -1;
         }
 
         var did = (respond.payload[1] << 8) | respond.payload[2];
         if (FRAME_DID_DRAWER_SELECT != did) {
             console.log("Invalid respond did 0x%s", did.toString(16));
+            errCb(`Invalid respond did 0x${did.toString(16)}`)
             return -1;
         }
+        // successCb()
         return 0;
     }
     return -1;

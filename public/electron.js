@@ -109,7 +109,6 @@ const helpMenu = template[template.length - 1].submenu
 addUpdateMenuItems(helpMenu, 0)
 
 let setting = {
-    "flags": "0x000008000000",
     "limit": 1000, //限制电流
     "sw_min":1,
     "sw_max":9,
@@ -208,7 +207,7 @@ function createWindow() {
         mainWindow.webContents.send('openDriversFromMain',library)
     });
 
-    //用户开始测试
+    //用户开始预测试
     ipcMain.on('startTest', async (e, tbox) => {
         console.log('tbox', tbox)
         let openResult = OpenCanDevice({
@@ -249,11 +248,11 @@ function createWindow() {
             for (let i = 0; i < tbox.length; i++) {
                 console.log(new Date())
                 if(global.isTesting){
-                    GetDutInfo(tbox[i], setting, (sw, avg, max) => {
-                        console.log('获取测试信息', sw, avg, max)
+                    GetDutInfo(tbox[i], (time,sw, avg, max) => {
+                        console.log('获取测试信息',time, sw, avg, max)
                         mainWindow.webContents.send('sendInfoFromMain', {
                             index: tbox[i],
-                            sw, avg, max
+                            time,sw, avg, max
                         })
                         if(i===tbox.length-1){
                             CloseCanDevice()
@@ -275,11 +274,87 @@ function createWindow() {
         }
     });
 
-    //用户停止测试
+    //用户停止预测试
     ipcMain.on('stopTest', (e) => {
         CloseCanDevice();
         global.isTesting=false;
         mainWindow.webContents.send('changeStart',false)
+    });
+
+    //用户开始正式测试
+    ipcMain.on('startFormalTest', async (e, selectedDrawers) => {
+        console.log('preLibrary',preLibrary)
+        let setupResult;
+        if(!global.isTesting){
+            let openResult = OpenCanDevice({
+                ...setting,
+                library: preLibrary
+            }, async(err) => {
+                global.isTesting=false;
+                openDialog({
+                    type: 'error',
+                    title: 'Error',
+                    message: err,
+                })
+                console.log('打开驱动失败')
+                mainWindow.webContents.send('changeStart',false)
+            })
+            if(openResult!==0){
+                return  false
+            }
+            setupResult = SetupDutPower(setting, (err) => {
+                global.isTesting=false;
+                openDialog({
+                    type: 'error',
+                    title: 'Error',
+                    message: err,
+                })
+                mainWindow.webContents.send('changeStart',false)
+            })
+            await sleep(2000);
+        }
+
+
+        if (setupResult === 0 || global.isTesting) {
+            console.log('启动开始测试成功,开始选择抽屉')
+            for(let i=0;i<selectedDrawers.length;i++){
+                console.log('选择抽屉',selectedDrawers[i].index);
+                let selectDrawerResult=SelectDrawer(selectedDrawers[i].index);
+                console.log('选择抽屉结果',selectDrawerResult);
+                if(selectDrawerResult===0){
+                    global.isTesting=true;
+                    for (let j = 0; j < selectedDrawers[i].tBox.length; j++) {
+                        if(global.isTesting&&selectedDrawers[i].tBox[j].checked){
+                            GetDutInfo(selectedDrawers[i].tBox[j].index, (time,sw, avg, max) => {
+                                console.log('获取测试信息',time, sw, avg, max)
+                                mainWindow.webContents.send('sendInfoFromMain', {
+                                    drawerIndex:selectedDrawers[i].index,
+                                    tBoxIndex: selectedDrawers[i].tBox[j].index,
+                                    time,sw, avg, max
+                                })
+
+
+
+                            }, (err) => {
+                                openDialog({
+                                    type: 'error',
+                                    title: 'Error',
+                                    message: err,
+                                })
+                            })
+                        }
+
+                        if((i===selectedDrawers.length-1)&&(j===selectedDrawers[i].tBox.length-1)){
+                            console.log('完成一轮测试')
+                            mainWindow.webContents.send('completeOneRound')
+                        }
+
+
+                    }
+                }
+            }
+        }
+
     });
 
     //用户导出CSV
