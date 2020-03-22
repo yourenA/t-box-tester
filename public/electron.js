@@ -208,8 +208,10 @@ function createWindow() {
     });
 
     //用户开始预测试
-    ipcMain.on('startTest', async (e, tbox) => {
+    ipcMain.on('startTest', async (e, tbox,flags) => {
         console.log('tbox', tbox)
+        console.log('flags', flags)
+        console.log('0xfff', 0xfff)
         let openResult = OpenCanDevice({
             ...setting,
             library: preLibrary
@@ -227,7 +229,7 @@ function createWindow() {
             return  false
         }
         let start_at=Date.now()
-        let setupResult = SetupDutPower(setting, (err) => {
+        let setupResult = SetupDutPower(setting,flags, (err) => {
             global.isTesting=false;
             openDialog({
                 type: 'error',
@@ -237,9 +239,6 @@ function createWindow() {
             mainWindow.webContents.send('changeStart',false)
         })
         let end_at=Date.now()
-        console.log('start_at',start_at)
-        console.log('end_at',end_at)
-        console.log('end_at-start_at',end_at-start_at)
         console.log('delay',setting.delay)
         await sleep(setting.delay-(end_at-start_at))
         if (setupResult === 0) {
@@ -283,7 +282,7 @@ function createWindow() {
 
     //用户开始正式测试
     ipcMain.on('startFormalTest', async (e, selectedDrawers) => {
-        console.log('preLibrary',preLibrary)
+        console.log('selectedDrawers',selectedDrawers.length)
         let setupResult;
         if(!global.isTesting){
             let openResult = OpenCanDevice({
@@ -317,9 +316,22 @@ function createWindow() {
 
         if (setupResult === 0 || global.isTesting) {
             console.log('启动开始测试成功,开始选择抽屉')
+
             for(let i=0;i<selectedDrawers.length;i++){
                 console.log('选择抽屉',selectedDrawers[i].index);
-                let selectDrawerResult=SelectDrawer(selectedDrawers[i].index);
+                let flags=''
+                for(let k=0;k<selectedDrawers[i].tBox.length;k++){
+                    if(selectedDrawers[i].tBox[k].checked){
+                        flags=flags+'1';
+                    }else{
+                        flags=flags+'0';
+                    }
+                }
+                let flags2=parseInt(Number(flags),2)
+                let flags16=flags2.toString(16);
+                console.log('flags',flags)
+                console.log('flags16',flags16)
+                let selectDrawerResult=SelectDrawer(selectedDrawers[i].index,flags16);
                 console.log('选择抽屉结果',selectDrawerResult);
                 if(selectDrawerResult===0){
                     global.isTesting=true;
@@ -332,8 +344,6 @@ function createWindow() {
                                     tBoxIndex: selectedDrawers[i].tBox[j].index,
                                     time,sw, avg, max
                                 })
-
-
 
                             }, (err) => {
                                 openDialog({

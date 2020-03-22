@@ -111,7 +111,7 @@
     justify-content: space-between;
 }
 .checkForm .MuiFormControlLabel-root{
-    width: 63px;
+    width: 70px;
 }
 .drawers{
     /*display: flex;*/
@@ -135,4 +135,10 @@
 }
 .MuiTab-textColorInherit.Mui-selected{
     background: rgb(220, 0, 78);
+}
+.table-checked .MuiTableCell-stickyHeader{
+    background-color: cornsilk  !important;
+}
+.drawerName{
+    background-color: #2e386e!important;
 }

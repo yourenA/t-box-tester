@@ -89,7 +89,7 @@ function a11yProps(index) {
 class App extends PureComponent {
     constructor(props) {
         super(props);
-        this.timer=null
+        this.timer = null
         this.state = {
             drivers: [],
             selectDriver: '',
@@ -97,6 +97,7 @@ class App extends PureComponent {
             dialogOpen: false,
             startLoading: false,
             checkedAll: false,
+            checkedAllTbox:false,
             isTesting: false,
             drawerOpen: false,
             selectTBox: false,
@@ -146,7 +147,7 @@ class App extends PureComponent {
             })
         });
         ipcRenderer.on('getDriversFromMain', function (event, message) {
-            console.log('获取到的驱动', message)
+            console.log('获取到的驱动2', message)
             that.setState({
                 drivers: message,
             })
@@ -159,22 +160,26 @@ class App extends PureComponent {
         });
 
         ipcRenderer.on('exportCSVFromMain', (event, message) => {
-            let opts = {fields: ['name', 'time', 'sw', 'avg(mA)', 'max(mA)']};
+            let opts = {fields: ['drawer_name','tBox_name', 'time', 'sw', 'avg(mA)', 'max(mA)']};
             let csvContent = [];
-            for (let i = 0; i < that.state.tBox.length; i++) {
-                if (that.state.tBox[i].checked) {
-                    csvContent.push({
-                        name: that.state.tBox[i].name,
-                        time: that.state.tBox[i].time,
-                        sw: that.state.tBox[i].sw,
-                        [`avg(mA)`]: that.state.tBox[i].avg,
-                        [`max(mA)`]: that.state.tBox[i].max,
-                    })
+            for (let i = 0; i < that.state.drawers.length; i++) {
+                for(let j=0;j<that.state.drawers[i].tBox.length;j++){
+                    if (that.state.drawers[i].tBox[j].checked) {
+                        csvContent.push({
+                            drawer_name: that.state.drawers[i].name,
+                            tBox_name: that.state.drawers[i].tBox[j].name,
+                            time: that.state.drawers[i].tBox[j].time,
+                            sw: that.state.drawers[i].tBox[j].sw,
+                            [`avg(mA)`]: that.state.drawers[i].tBox[j].avg,
+                            [`max(mA)`]: that.state.drawers[i].tBox[j].max
+                        })
+                    }
                 }
+
             }
             console.log('csvContent', csvContent)
             parseAsync(csvContent, opts).then(csv => {
-                fs.writeFile(message, csv, err => {
+                fs.writeFile(message, csv,  { 'encoding ': 'utf-8' },err => {
                     if (err) {
                         console.log('err', err)
                         ipcRenderer.send('open-dialog', {
@@ -221,9 +226,15 @@ class App extends PureComponent {
 
         ipcRenderer.on('completeOneRound', (event, bool) => {
             console.log('完成一轮测试')
-            this.timer=setTimeout(() => {
-                that.startTest()
-            }, 2000)
+            this.timer = setTimeout(() => {
+                if(that.state.isTesting){
+                    that.startTest()
+                }else{
+                    console.log('进入setTimeout,但已经停止')
+                    clearTimeout(that.timer)
+                }
+
+            }, 10000)
         })
 
         Mousetrap.bind('ctrl+d', () => {
@@ -277,7 +288,8 @@ class App extends PureComponent {
         this.setState({
             drawers: [...this.state.drawers]
         }, function () {
-            this.checkedAllState()
+            this.checkedAllState();
+            this.checkedAllTBoxState()
         })
 
     }
@@ -310,6 +322,9 @@ class App extends PureComponent {
             }
             this.setState({
                 drawers: [...this.state.drawers]
+            },function () {
+                this.checkedAllTBoxState()
+
             })
         })
     }
@@ -324,7 +339,33 @@ class App extends PureComponent {
         this.setState({
             drawers: [...this.state.drawers]
         })
-
+    }
+    handleCheckedAllTbox = (e) => {
+        console.log('e',e.target.checked)
+        let drawers = this.state.drawers;
+        for(let i=0;i<drawers.length;i++){
+            drawers[i].checkedAllTBox = e.target.checked
+            for(let j=0;j<drawers[i].tBox.length;j++){
+                drawers[i].tBox[j].checked=e.target.checked;
+            }
+        }
+        this.setState({
+            checkedAllTbox:!this.state.checkedAllTbox,
+            drawers:[...drawers]
+        })
+    }
+    checkedAllTBoxState = () => {
+        let all = true
+        for (let i = 0; i < this.state.drawers.length; i++) {
+            for (let j = 0; j < this.state.drawers[i].tBox.length; j++) {
+                if (!this.state.drawers[i].tBox[j].checked) {
+                    all = false
+                }
+            }
+        }
+        this.setState({
+            checkedAllTbox: all
+        })
     }
     startTest = () => {
         // for (let i = 0; i < this.state.drawers.length; i++) {
@@ -368,7 +409,98 @@ class App extends PureComponent {
                 <Grid container spacing={3} className={'pre-box'}>
                     <Grid item xs={7}>
                         <div className={'table-content'} style={{display: 'flex'}}>
-                            <Tabs
+
+                            <TableContainer
+                                style={{maxHeight: ' calc(100vh - 100px)', border: '1px solid #333'}}>
+                                <Table size="small" >
+                                    {
+                                        this.state.drawers.map((row, index) => {
+                                            return <TableHead key={index}>
+                                                <TableRow>
+                                                    <StyledTableCell colSpan={6}
+                                                                     className={'drawerName'}
+                                                                     align="center">{row.name}</StyledTableCell>
+
+                                                </TableRow>
+                                                <TableRow>
+                                                    <StyledTableCell>TBox名称</StyledTableCell>
+                                                    <StyledTableCell align="left">时间</StyledTableCell>
+                                                    <StyledTableCell align="left">电源开关状态</StyledTableCell>
+                                                    <StyledTableCell align="left">平均电流(mA)</StyledTableCell>
+                                                    <StyledTableCell align="left">峰值电流(mA)</StyledTableCell>
+                                                </TableRow>
+                                                {row.tBox.map((row2, index2) => {
+                                                    return (
+                                                        <StyledTableRow
+                                                            key={index2}
+                                                            className={`${row2.checked ? 'table-checked' : ''}  ${(Number(row2.sw) < this.state.setting.sw_min || Number(row2.sw) > this.state.setting.sw_max) ? 'error-row' : ''}`}
+                                                            role="checkbox" key={row2.name}>
+                                                            <TableCell scope="row">
+                                                                {row2.name}
+                                                            </TableCell>
+                                                            <TableCell
+                                                                align="left">{row2.time}</TableCell>
+                                                            <TableCell
+                                                                align="left">{row2.sw}</TableCell>
+                                                            <TableCell
+                                                                align="left">{row2.avg}</TableCell>
+                                                            <TableCell
+                                                                align="left">{row2.max}</TableCell>
+                                                        </StyledTableRow>
+                                                    )
+                                                })
+                                                }
+                                            </TableHead>
+                                        })
+                                    }
+                                </Table>
+                            </TableContainer>
+                            {/*      <TableContainer
+                                style={{maxHeight: ' calc(100vh - 130px)', border: '1px solid #333'}}>
+                                <Table size="small" stickyHeader>
+                                    <TableHead>
+                                        <TableRow>
+                                            <StyledTableCell>
+                                            </StyledTableCell>
+                                            <StyledTableCell>TBox名称</StyledTableCell>
+                                            <StyledTableCell align="left">时间</StyledTableCell>
+                                            <StyledTableCell align="left">电源开关状态</StyledTableCell>
+                                            <StyledTableCell align="left">平均电流(mA)</StyledTableCell>
+                                            <StyledTableCell align="left">峰值电流(mA)</StyledTableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {row.tBox.map((row2, index2) => {
+                                            return (
+                                                <StyledTableRow
+                                                    className={`${row2.checked ? 'table-checked' : ''}  ${(Number(row2.sw) < this.state.setting.sw_min || Number(row2.sw) > this.state.setting.sw_max) ? 'error-row' : ''}`}
+                                                    role="checkbox" key={row2.name}>
+                                                    <StyledTableCell padding="checkbox">
+                                                        <Checkbox
+                                                            disabled={true}
+                                                            checked={row2.checked}
+                                                            value={row2.index}
+                                                        />
+                                                    </StyledTableCell>
+                                                    <StyledTableCell scope="row">
+                                                        {row2.name}
+                                                    </StyledTableCell>
+                                                    <StyledTableCell
+                                                        align="left">{row2.time}</StyledTableCell>
+                                                    <StyledTableCell
+                                                        align="left">{row2.sw}</StyledTableCell>
+                                                    <StyledTableCell
+                                                        align="left">{row2.avg}</StyledTableCell>
+                                                    <StyledTableCell
+                                                        align="left">{row2.max}</StyledTableCell>
+                                                </StyledTableRow>
+                                            )
+                                        })
+                                        }
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>*/}
+                            {/*  <Tabs
                                 style={{maxHeight: ' calc(100vh - 100px)', width: '100px', background: '#3f51b5'}}
                                 orientation="vertical"
                                 variant="scrollable"
@@ -442,7 +574,7 @@ class App extends PureComponent {
                                         </TableContainer>
                                     </div>}
                                 </Typography>
-                            })}
+                            })}*/}
 
                         </div>
                     </Grid>
@@ -488,7 +620,12 @@ class App extends PureComponent {
                                 <p className={'title'} style={{marginTop: '6px'}}>选择抽屉 <span
                                     style={{fontSize: '14px', color: '#3f51b5'}}>括号数字表示已选T-Box个数
 
-                                </span></p>
+                                </span>
+                                    <Checkbox
+                                        checked={this.state.checkedAllTbox}
+                                        onChange={this.handleCheckedAllTbox}
+                                        disabled={this.state.isTesting}
+                                    /></p>
                                 <div style={{marginTop: '12px'}} className={'drawers'}>
                                     {
                                         this.state.drawers.map((item, index) => {
@@ -555,21 +692,22 @@ class App extends PureComponent {
                                 </Button>
                                 <Button
                                     title={'ctrl+e 快捷键可以导出CSV'}
-                                    disabled={this.state.isTesting} variant="contained" color="primary" onClick={this.exportCSV}
+                                    disabled={this.state.isTesting} variant="contained" color="primary"
+                                    onClick={this.exportCSV}
                                     startIcon={<SaveIcon/>}>
                                     导出CSV(ctrl+e)
                                 </Button>
 
                                 {this.state.isTesting &&
-                                    <div style={{marginTop:'12px'}}>
-                                        <Button variant="contained" color="secondary"
-                                                onClick={() => {
-                                                    clearTimeout(this.timer)
-                                                    ipcRenderer.send('stopTest');
-                                                }} startIcon={<CancelScheduleSendIcon/>}>
-                                            结束测试
-                                        </Button>
-                                    </div>
+                                <div style={{marginTop: '12px'}}>
+                                    <Button variant="contained" color="secondary"
+                                            onClick={() => {
+                                                clearTimeout(this.timer)
+                                                ipcRenderer.send('stopTest');
+                                            }} startIcon={<CancelScheduleSendIcon/>}>
+                                        结束测试
+                                    </Button>
+                                </div>
 
                                 }
 

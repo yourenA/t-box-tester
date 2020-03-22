@@ -309,10 +309,23 @@ class App extends PureComponent {
         }
         this.setState({
             tBox:[...this.state.tBox]
-        })
+        });
+        let flags=''
+        for(let i=0;i<this.state.tBox.length;i++){
+            if(this.state.tBox[i].checked){
+                flags=flags+'1';
+            }else{
+                flags=flags+'0';
+            }
+        }
+        let flags2=parseInt(Number(flags),2)
+        let flags16=flags2.toString(16)
+        console.log('flags2',flags2)
+        console.log('flags16',flags16)
         let afterFilter = filter(this.state.tBox, o => {
             return o.checked
         });
+
         let tbox = []
         for (let i = 0; i < afterFilter.length; i++) {
             tbox.push(afterFilter[i].index)
@@ -322,7 +335,7 @@ class App extends PureComponent {
             // startLoading: true,
             isTesting:true,
         },function () {
-            ipcRenderer.send('startTest', tbox);
+            ipcRenderer.send('startTest', tbox,'0x'+flags16);
         })
     }
 

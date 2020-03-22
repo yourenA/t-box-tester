@@ -85,7 +85,6 @@ global.isTesting=false;
  */
 function OpenCanDevice(setting, errCb) {
     console.log('打开Can设备...')
-    // return 0;
     if (0 != device.open(setting.library)) {
         errCb("Device open failure.");
         return -1;
@@ -122,7 +121,7 @@ function OpenCanDevice(setting, errCb) {
  *  关闭Can设备
  */
 function CloseCanDevice() {
-    console.log('frameFilter',frameFilter)
+    console.log('关闭设备',frameFilter)
     if (frameFilter) {
         device.stopMsgFilter(frameFilter.id);
     }
@@ -138,7 +137,7 @@ function CloseCanDevice() {
  * flags, 12位长度数值类型，每位代表对应的DUT电源开关，0为关，1为开
  * limit, 限制电流，单位毫安。超出该值时，自动关闭电源，范围：0 - 50000
  */
-function SetupDutPower(setting, errCb) {
+function SetupDutPower(setting,flags, errCb) {
     console.log('设置DUT电源...')
     // return 0;
     var request = Buffer.from([SID_WRITE_DATA_BY_IDENTIFIER,
@@ -146,12 +145,12 @@ function SetupDutPower(setting, errCb) {
         DRAWER_DID_DUT_SWITCH,
         setting.limit >> 8,
         setting.limit,
-        setting.flags >> 8,
-        setting.flags]);
+        flags >> 8,
+        flags]);
     /* 发送设置请求 */
     console.log('发送DUT电源设置请求')
-    // var ret = device.send(CANID_DRAWER_HOST, request, 1000);
-    var ret = 0
+    var ret = device.send(CANID_DRAWER_HOST, request, 1000);
+    // var ret = 0
     if (0 != ret) {
         console.log("Send request failure %d.", ret);
         errCb(`Send request failure ${ret}`)
@@ -199,8 +198,8 @@ function SetupDutPower(setting, errCb) {
  function  GetDutInfo(index, cb, errCb) {
     var request = Buffer.from([SID_READ_DATA_BY_IDENTIFIER, 0x01, 0x10 + index]);
     /* 发送设置请求 */
-    // var ret = device.send(CANID_DRAWER_HOST, request, 1000);
-    var ret = 0
+    var ret = device.send(CANID_DRAWER_HOST, request, 1000);
+    // var ret = 0
     if (0 != ret) {
         console.log("Send request failure %d.", ret);
         errCb(`Send request failure ${ret}`)
@@ -208,17 +207,17 @@ function SetupDutPower(setting, errCb) {
     }
     /* 等待回复 */
     while (1) {
-        var math=Math.random();
-        if(math>0.5){
-            cb(Date.now(),(math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
-            // errCb(`T-Box-${index} 数据出错`)
-            return -1;
-        }
-        if(math>0.2){
-            continue;
-        }
-        cb(Date.now(),(math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
-        return 0;
+        // var math=Math.random();
+        // if(math>0.5){
+        //     cb(Date.now(),(math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
+        //     // errCb(`T-Box-${index} 数据出错`)
+        //     return -1;
+        // }
+        // if(math>0.2){
+        //     continue;
+        // }
+        // cb(Date.now(),(math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
+        // return 0;
 
 
 
@@ -261,14 +260,14 @@ function SetupDutPower(setting, errCb) {
 function SelectDrawer(index,successCb,errCb,) {
     var request = Buffer.from([SID_WRITE_DATA_BY_IDENTIFIER, FRAME_DID_DRAWER_SELECT >> 8, FRAME_DID_DRAWER_SELECT, index]);
     /* 发送设置请求 */
-    // var ret = device.send(CANID_FRAME_HOST, request, 1000);
-    var ret = 0;
+    var ret = device.send(CANID_FRAME_HOST, request, 1000);
+    // var ret = 0;
     if (0 != ret) {
         console.log("Send request failure %d.", ret);
         errCb(`RSend request failure ${ret}`)
         return -1;
     }
-    return 0;
+    // return 0;
     /* 等待回复 */
     while (1) {
         var respond = device.recv(1000);
