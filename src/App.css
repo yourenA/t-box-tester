@@ -42,11 +42,38 @@
 .MuiAppBar-colorPrimary{
   background-color:#282c34 !important;
 }
+.right-content{
+    display: flex;
+    flex-direction: column;
+    background: #ccc;
+}
+.rightTop h4{
+    font-size: 24px;
+    margin: 0 ;
+    margin-bottom: 12px;
+}
+.rightTop{
+    flex: 1;
+    padding: 25px;
+}
+.rightTop h4.total{
+    color: #222;
+}
+.rightTop h4.failure span{
+    color: #ff0c05;
+}
+.rightTop h4 .MuiSvgIcon-root{
+    position: relative;
+    top: 4px;
+    margin-right: 4px;
+    font-size: 26px;
+}
 .test-page{
-  padding: 12px;
+    flex: 1;
+  padding: 25px;
 }
 .drivers{
-    margin-bottom: 18px;
+
 }
 .title{
     margin: 0;
@@ -114,13 +141,18 @@
     width: 70px;
 }
 .drawers{
-    /*display: flex;*/
-    /*flex-wrap: wrap;*/
-    /*justify-content: space-between;*/
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
 }
 .drawers button{
     margin-bottom: 12px;
     margin-right: 12px;
+}
+.drawersItem{
+    width: 25%;
+    text-align: center;
+
 }
 
 @media (min-width: 600px){
@@ -141,4 +173,13 @@
 }
 .drawerName{
     background-color: #2e386e!important;
+}
+.MuiTabs-scrollButtons svg{
+    color: #ffffff !important;
+}
+.PrivateTabScrollButton-root-397{
+    display: none;
+}
+.MuiFilledInput-input{
+    padding: 12px !important;
 }

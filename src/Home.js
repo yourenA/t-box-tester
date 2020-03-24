@@ -19,7 +19,7 @@ class App extends PureComponent {
                 <div className="App">
                     <header className="App-header">
                         <div className='item' onClick={() => {
-                            this.props.history.push("/pre");
+                            this.props.history.replace("/pre");
                         }}>
                             <img src={lottery} className="App-logo" alt="logo"/>
                             <p>
@@ -29,7 +29,7 @@ class App extends PureComponent {
                         </div>
                         <div className='item'
                              onClick={() => {
-                                 this.props.history.push("/formal");
+                                 this.props.history.replace("/formal");
                              }}>
                             <img src={stats} className="App-logo" alt="logo"/>
                             <p>

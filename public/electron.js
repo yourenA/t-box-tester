@@ -109,10 +109,12 @@ const helpMenu = template[template.length - 1].submenu
 addUpdateMenuItems(helpMenu, 0)
 
 let setting = {
-    "limit": 1000, //限制电流
-    "sw_min":1,
-    "sw_max":9,
-    "delay": 2000,
+    "limit": 2800, //限制电流
+    "avg_min":2700,
+    "avg_max":2750,
+    "peak_min":2700,
+    "peak_max":2750,
+    "delay": 10000,
 }
 
 function createWindow() {
@@ -211,7 +213,6 @@ function createWindow() {
     ipcMain.on('startTest', async (e, tbox,flags) => {
         console.log('tbox', tbox)
         console.log('flags', flags)
-        console.log('0xfff', 0xfff)
         let openResult = OpenCanDevice({
             ...setting,
             library: preLibrary
@@ -236,16 +237,19 @@ function createWindow() {
                 title: 'Error',
                 message: err,
             })
+            CloseCanDevice()
+            global.isTesting=false;
             mainWindow.webContents.send('changeStart',false)
+
         })
-        let end_at=Date.now()
-        console.log('delay',setting.delay)
-        await sleep(setting.delay-(end_at-start_at))
+
         if (setupResult === 0) {
+            let end_at=Date.now()
+            console.log('delay',setting.delay)
+            await sleep(300)
             console.log('启动开始测试成功,开始获取测试信息')
             global.isTesting=true;
             for (let i = 0; i < tbox.length; i++) {
-                console.log(new Date())
                 if(global.isTesting){
                     GetDutInfo(tbox[i], (time,sw, avg, max) => {
                         console.log('获取测试信息',time, sw, avg, max)
@@ -257,14 +261,15 @@ function createWindow() {
                             CloseCanDevice()
                             global.isTesting=false;
                             mainWindow.webContents.send('changeStart',false)
+                            mainWindow.webContents.send('computeFailureCount')
                         }
 
                     }, (err) => {
-                        openDialog({
-                            type: 'error',
-                            title: 'Error',
-                            message: err,
-                        })
+                        if(i===tbox.length-1){
+                            CloseCanDevice()
+                            global.isTesting=false;
+                            mainWindow.webContents.send('changeStart',false)
+                        }
                     })
                 }
 
@@ -272,18 +277,20 @@ function createWindow() {
             }
         }
     });
-
-    //用户停止预测试
+    let hadSetupArr=[];
+    //用户停止测试
     ipcMain.on('stopTest', (e) => {
         CloseCanDevice();
+        hadSetupArr=[];
         global.isTesting=false;
         mainWindow.webContents.send('changeStart',false)
     });
 
+
+
     //用户开始正式测试
     ipcMain.on('startFormalTest', async (e, selectedDrawers) => {
         console.log('selectedDrawers',selectedDrawers.length)
-        let setupResult;
         if(!global.isTesting){
             let openResult = OpenCanDevice({
                 ...setting,
@@ -300,41 +307,49 @@ function createWindow() {
             })
             if(openResult!==0){
                 return  false
+            }else{
+                global.isTesting=true;
+                mainWindow.webContents.send('changeStart',true)
             }
-            setupResult = SetupDutPower(setting, (err) => {
-                global.isTesting=false;
-                openDialog({
-                    type: 'error',
-                    title: 'Error',
-                    message: err,
-                })
-                mainWindow.webContents.send('changeStart',false)
-            })
-            await sleep(2000);
         }
 
 
-        if (setupResult === 0 || global.isTesting) {
-            console.log('启动开始测试成功,开始选择抽屉')
+        if (global.isTesting) {
 
             for(let i=0;i<selectedDrawers.length;i++){
-                console.log('选择抽屉',selectedDrawers[i].index);
-                let flags=''
-                for(let k=0;k<selectedDrawers[i].tBox.length;k++){
-                    if(selectedDrawers[i].tBox[k].checked){
-                        flags=flags+'1';
+                if(hadSetupArr.indexOf(selectedDrawers[i].index)>=0){
+                    console.log('已经置DUT电源')
+                }else{
+                    let flags=''
+                    for(let k=0;k<selectedDrawers[i].tBox.length;k++){
+                        if(selectedDrawers[i].tBox[k].checked){
+                            flags=flags+'1';
+                        }else{
+                            flags=flags+'0';
+                        }
+                    }
+                    let flags2=parseInt(Number(flags),2)
+                    console.log('flags',flags)
+                    console.log('flags2',flags2)
+                    let setupResult = SetupDutPower(setting, flags2,(err) => {
+                        mainWindow.webContents.send('computeFailureCount')
+                    })
+                    if(setupResult!==0){
+                        continue
                     }else{
-                        flags=flags+'0';
+                        hadSetupArr.push(selectedDrawers[i].index)
                     }
                 }
-                let flags2=parseInt(Number(flags),2)
-                let flags16=flags2.toString(16);
-                console.log('flags',flags)
-                console.log('flags16',flags16)
-                let selectDrawerResult=SelectDrawer(selectedDrawers[i].index,flags16);
+
+
+                console.log('开始选择抽屉')
+                console.log('选择抽屉',selectedDrawers[i].index);
+                let selectDrawerResult=SelectDrawer(selectedDrawers[i].index,(err) => {
+                })
                 console.log('选择抽屉结果',selectDrawerResult);
                 if(selectDrawerResult===0){
-                    global.isTesting=true;
+                    console.log('选择抽屉成功')
+                    // global.isTesting=true;
                     for (let j = 0; j < selectedDrawers[i].tBox.length; j++) {
                         if(global.isTesting&&selectedDrawers[i].tBox[j].checked){
                             GetDutInfo(selectedDrawers[i].tBox[j].index, (time,sw, avg, max) => {
@@ -346,17 +361,13 @@ function createWindow() {
                                 })
 
                             }, (err) => {
-                                openDialog({
-                                    type: 'error',
-                                    title: 'Error',
-                                    message: err,
-                                })
                             })
                         }
 
                         if((i===selectedDrawers.length-1)&&(j===selectedDrawers[i].tBox.length-1)){
                             console.log('完成一轮测试')
                             mainWindow.webContents.send('completeOneRound')
+                            mainWindow.webContents.send('computeFailureCount')
                         }
 
 

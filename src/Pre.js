@@ -11,9 +11,9 @@ import Typography from '@material-ui/core/Typography';
 import Snackbar from '@material-ui/core/Snackbar';
 import MuiAlert from '@material-ui/lab/Alert';
 import IconButton from '@material-ui/core/IconButton';
-import Divider from '@material-ui/core/Divider';
+import ErrorOutlineIcon from '@material-ui/icons/ErrorOutline';
 import MenuIcon from '@material-ui/icons/ArrowBack';
-import CancelScheduleSendIcon from '@material-ui/icons/CancelScheduleSend';
+import SettingsIcon from '@material-ui/icons/Settings';
 import SaveIcon from '@material-ui/icons/Save';
 import Grid from '@material-ui/core/Grid';
 import {parseAsync} from 'json2csv';
@@ -23,8 +23,8 @@ import DialogContent from '@material-ui/core/DialogContent';
 import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import PlayCircleFilledWhiteIcon from '@material-ui/icons/PlayCircleFilledWhite';
-import BackupIcon from '@material-ui/icons/Backup';
-import DescriptionIcon from '@material-ui/icons/Description';
+import SelectAllIcon from '@material-ui/icons/SelectAll';
+import ErrorIcon from '@material-ui/icons/Error';
 import {withStyles, makeStyles} from '@material-ui/core/styles';
 import Table from '@material-ui/core/Table';
 import TableBody from '@material-ui/core/TableBody';
@@ -90,25 +90,27 @@ class App extends PureComponent {
             drawerOpen:false,
             errorName: '',
             setting:{},
-            tBox: [{name: 'T-Box-1', index: 1, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-2', index: 2,  sw: '',avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-3', index: 3, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-4', index: 4, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-5', index: 5, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-6', index: 6, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-7', index: 7, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-8', index: 8, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-9', index: 9, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-10', index: 10, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-11', index: 11, sw: '', avg: '', max: '', checked: false,time:''},
-                {name: 'T-Box-12', index: 12, sw: '', avg: '', max: '', checked: false,time:''},
+            failureCount:'',
+            tBox: [{name: 'T-Box-1', index: 1, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-2', index: 2,  sw: '',avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-3', index: 3, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-4', index: 4, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-5', index: 5, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-6', index: 6, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-7', index: 7, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-8', index: 8, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-9', index: 9, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-10', index: 10, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-11', index: 11, sw: '', avg: '', max: '', checked: true,time:''},
+                {name: 'T-Box-12', index: 12, sw: '', avg: '', max: '', checked: true,time:''},
             ]
         };
     }
 
     componentDidMount() {
-        console.log('componentDidMount in pre')
+        console.log('componentDidMount in pre2')
         const that = this;
+        this.checkedAllState()
         ipcRenderer.send('getDrivers')
         ipcRenderer.send('getSetting')
         ipcRenderer.on('getExePathFromMain', function (event, exePath) {
@@ -124,23 +126,18 @@ class App extends PureComponent {
             that.setState({
                 drivers: message,
             })
+            if(message.length>0){
+                that.setState({
+                    selectDriver:message[0].library
+                })
+                ipcRenderer.send('openDrivers',message[0].library);
+            }
         });
         ipcRenderer.on('openDriversFromMain', function (event,library) {
             console.log('打开驱动', library)
             that.setState({
                 selectDriver: library,
             })
-            // if (openResult === 0) {
-            //     that.setState({
-            //         selectDriver: library,
-            //     })
-            //     ipcRenderer.send('open-dialog', {
-            //         type: "info",
-            //         title: "Success",
-            //         message: '打开驱动成功'
-            //     });
-            // } else {
-            // }
         });
 
         ipcRenderer.on('exportCSVFromMain', (event, message) => {
@@ -191,6 +188,19 @@ class App extends PureComponent {
                     })
                 }
             }
+        })
+        ipcRenderer.on('computeFailureCount', (event) => {
+            const failureCount=filter(that.state.tBox,row=>{
+                return row.checked&& (Number(row.max)<that.state.setting.peak_min
+                    || Number(row.max)>that.state.setting.peak_max
+                    ||  Number(row.avg)<that.state.setting.avg_min
+                    || Number(row.max)>that.state.setting.avg_max
+                    || (Number(row.sw)===0)
+                )
+            }).length
+            that.setState({
+                failureCount
+            })
         })
         ipcRenderer.on('changeStart', (event,bool) => {
             console.log('bool',bool)
@@ -319,9 +329,8 @@ class App extends PureComponent {
             }
         }
         let flags2=parseInt(Number(flags),2)
-        let flags16=flags2.toString(16)
+        console.log('flags',flags)
         console.log('flags2',flags2)
-        console.log('flags16',flags16)
         let afterFilter = filter(this.state.tBox, o => {
             return o.checked
         });
@@ -335,26 +344,41 @@ class App extends PureComponent {
             // startLoading: true,
             isTesting:true,
         },function () {
-            ipcRenderer.send('startTest', tbox,'0x'+flags16);
+            ipcRenderer.send('startTest', tbox,flags2);
         })
     }
 
     render() {
-
+        const testCount=filter(this.state.tBox,o=>{
+            return o.checked
+        }).length;
         return (
             <div>
                 <AppBar position="fixed">
-                    <Toolbar>
+                    <Toolbar style={{display:'flex'}}>
                         <IconButton onClick={() => {
-                            this.props.history.goBack()
+                            this.props.history.replace('/')
                         }} edge="start" color="inherit" aria-label="menu">
                             <MenuIcon/>
                         </IconButton>
-                        <Typography variant="h6">
+                        <Typography variant="h6" style={{flex:1}}>
                             老化抽屉预测试
                         </Typography>
+                        <IconButton  color="secondary"
+                                     title={'如果需要自定义配置，请在exe安装目录新建setting.json文件'}
+                                    onClick={()=>{
+                                        this.setState({
+                                            drawerOpen:!this.state.drawerOpen
+                                        })
+                                    }}>
+                            <SettingsIcon
+                                style={{ color: '#fff' }}
+                            />
+                        </IconButton>
+
 
                     </Toolbar>
+
                 </AppBar>
                 <Grid container spacing={3} className={'pre-box'}>
                     <Grid item xs={8}>
@@ -379,7 +403,14 @@ class App extends PureComponent {
                                     </TableHead>
                                     <TableBody>
                                         {this.state.tBox.map((row,index) => (
-                                            <StyledTableRow className={`${row.checked ? 'table-checked' : ''}  ${(Number(row.sw)<this.state.setting.sw_min || Number(row.sw)>this.state.setting.sw_max) ? 'error-row' : ''}`}
+                                            <StyledTableRow className={`${row.checked ? 'table-checked' : ''}  
+                                            ${row.time&&( Number(row.max)<this.state.setting.peak_min
+                                                || Number(row.max)>this.state.setting.peak_max
+                                                ||  Number(row.avg)<this.state.setting.avg_min
+                                                || Number(row.max)>this.state.setting.avg_max
+                                                || (Number(row.sw)===0&&row.checked)
+                                            ) 
+                                                ? 'error-row' : ''}`}
                                                             role="checkbox" key={row.name}>
                                                 <StyledTableCell padding="checkbox">
                                                     <Checkbox
@@ -403,9 +434,15 @@ class App extends PureComponent {
                             </TableContainer>
                         </div>
                     </Grid>
-                    <Grid item xs={4}>
+                    <Grid item xs={4} className={'right-content'}>
+                        <div className={'rightTop'}>
+                            <div >
+                                <h4 className={'total'}><SelectAllIcon /><span>测试总数 : {testCount}</span></h4>
+                                <h4 className={'failure'}><ErrorOutlineIcon/>异常总数 : <span>{this.state.failureCount}</span></h4>
+                            </div>
+                        </div>
                         <div className="test-page">
-                            <div className="drivers">
+                         {/*   <div className="drivers">
                                 <p className={'title'}>当前参数</p>
                                 <div style={{marginTop: '12px'}}>
                                     <Button size="small"
@@ -420,17 +457,18 @@ class App extends PureComponent {
                                             startIcon={<DescriptionIcon/>}>
                                         查看当前配置
                                     </Button>
-                                  {/*  <Button size="small" variant="contained" color="primary"
+                                    <Button size="small" variant="contained" color="primary"
                                             onClick={this.openFile}
                                             disabled={this.state.isTesting}
                                             startIcon={<BackupIcon/>}>
                                         上传本地配置文件
-                                    </Button>*/}
+                                    </Button>
                                 </div>
                             </div>
-                            <Divider light/>
+                             <Divider light/>*/}
+
                             <div className="drivers">
-                                <p className={'title'}  style={{marginTop:'6px'}}>可选驱动</p>
+                                <p className={'title'}  style={{marginTop:'6px'}}>CAN设备</p>
                                 <div style={{marginTop: '12px'}}>
                                     <FormControl   style={{width:'100%'}}>
                                         <Select
@@ -450,14 +488,14 @@ class App extends PureComponent {
                             <div className="drivers" style={{marginTop: '12px'}}>
                                 <Button variant="contained" color="primary"
                                         disabled={this.state.isTesting}
-                                        style={{marginRight: '12px'}}
+                                        style={{marginRight: '12px',marginBottom: '12px'}}
                                         title={'ctrl+d 快捷键可以开始测试'}
                                         onClick={() => {
                                     if (!this.state.selectDriver) {
                                         ipcRenderer.send('open-dialog', {
                                             type: "error",
                                             title: "Error",
-                                            message: '请先选择驱动'
+                                            message: '请先选择CAN设备'
                                         });
                                         return
                                     }
@@ -479,6 +517,7 @@ class App extends PureComponent {
                                     开始测试(ctrl+d)
                                 </Button>
                                 <Button
+                                    style={{marginBottom: '12px'}}
                                     title={'ctrl+e 快捷键可以导出CSV'}
                                     disabled={this.state.isTesting} variant="contained" color="primary" onClick={this.exportCSV}
                                              startIcon={<SaveIcon/>}>

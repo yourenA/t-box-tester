@@ -138,7 +138,7 @@ function CloseCanDevice() {
  * limit, 限制电流，单位毫安。超出该值时，自动关闭电源，范围：0 - 50000
  */
 function SetupDutPower(setting,flags, errCb) {
-    console.log('设置DUT电源...')
+    console.log('设置DUT电源...',flags)
     // return 0;
     var request = Buffer.from([SID_WRITE_DATA_BY_IDENTIFIER,
         DRAWER_DID_DUT_SWITCH >> 8,
@@ -148,23 +148,21 @@ function SetupDutPower(setting,flags, errCb) {
         flags >> 8,
         flags]);
     /* 发送设置请求 */
-    console.log('发送DUT电源设置请求')
+    console.log('发送DUT电源设置请求...')
     var ret = device.send(CANID_DRAWER_HOST, request, 1000);
     // var ret = 0
     if (0 != ret) {
-        console.log("Send request failure %d.", ret);
-        errCb(`Send request failure ${ret}`)
-        CloseCanDevice()
+        console.log("SetupDutPower Send request failure %d.", ret);
+        errCb(`SetupDutPower Send request failure ${ret}`)
         return -1;
     }
+    console.log('发送DUT电源设置请求成功')
     /* 等待回复 */
     while (1) {
-        console.log('设置DUT电源成功')
-        return 0;
         var respond = device.recv(1000);
         if (0 != respond.err) {
-            console.log("Recv respond failure %d.", respond.err);
-            errCb(`Recv respond  failure ${respond.err}`)
+            console.log("SetupDutPower Recv respond failure %d.", respond.err);
+            errCb(`SetupDutPower Recv respond failure ${respond.err}`)
             return -1;
         }
 
@@ -173,15 +171,21 @@ function SetupDutPower(setting,flags, errCb) {
         }
 
         if (respond.payload.length != 3) {
-            console.log("Invalid respond length %d", respond.payload.length);
-            errCb(`Invalid respond length ${respond.payload.lengt}`)
+            console.log("SetupDutPower Invalid respond length %d", respond.payload.length);
+            errCb(`SetupDutPower Invalid respond length ${respond.payload.length}`)
+            return -1;
+        }
+
+        if (respond.payload[0] != (SID_WRITE_DATA_BY_IDENTIFIER + 0x40)) {
+            console.log("SetupDutPower Invalid SID 0x%s", respond.payload[0].toString(16));
+            errCb(`SetupDutPower Invalid SIDh ${respond.payload[0].toString(16)}`)
             return -1;
         }
 
         var did = (respond.payload[1] << 8) | respond.payload[2];
         if (DRAWER_DID_DUT_SWITCH != did) {
-            console.log("Invalid respond did 0x%s", did.toString(16));
-            errCb(`Invalid respond did ${did.toString(16)}`)
+            console.log("SetupDut PowerInvalid respond did 0x%s", did.toString(16));
+            errCb(`SetupDutPower Invalid respond did ${did.toString(16)}`)
             return -1;
         }
         console.log('设置DUT电源成功')
@@ -196,35 +200,22 @@ function SetupDutPower(setting,flags, errCb) {
  * cb, 获取成功后回调函数
  */
  function  GetDutInfo(index, cb, errCb) {
+     console.log('index',index)
     var request = Buffer.from([SID_READ_DATA_BY_IDENTIFIER, 0x01, 0x10 + index]);
     /* 发送设置请求 */
     var ret = device.send(CANID_DRAWER_HOST, request, 1000);
     // var ret = 0
     if (0 != ret) {
-        console.log("Send request failure %d.", ret);
-        errCb(`Send request failure ${ret}`)
+        console.log("GetDutInfo Send request failure %d.", ret);
+        errCb(`GetDutInfo Send request failure ${ret}`)
         return -1;
     }
     /* 等待回复 */
     while (1) {
-        // var math=Math.random();
-        // if(math>0.5){
-        //     cb(Date.now(),(math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
-        //     // errCb(`T-Box-${index} 数据出错`)
-        //     return -1;
-        // }
-        // if(math>0.2){
-        //     continue;
-        // }
-        // cb(Date.now(),(math * 10).toFixed(2), (math * 10).toFixed(2), (math * 10).toFixed(2));
-        // return 0;
-
-
-
         var respond = device.recv(1000);
         if (0 != respond.err) {
-            console.log("Recv respond failure %d.", respond.err);
-            errCb(`Recv respond  failure ${respond.err}`)
+            console.log("GetDutInfo Recv respond failure %d.", respond.err);
+            errCb(`GetDutInfo Recv respond  failure ${respond.err}`)
             return -1;
         }
 
@@ -232,22 +223,30 @@ function SetupDutPower(setting,flags, errCb) {
             continue;
         }
 
+        console.log('respond.payload',respond.payload)
+
         if (respond.payload.length != 8) {
-            console.log("Invalid respond length %d", respond.payload.length);
-            errCb(`Invalid respond length ${respond.payload.lengt}`)
+            console.log("GetDutInfo Invalid respond length %d", respond.payload.length);
+            errCb(`GetDutInfo Invalid respond length ${respond.payload.length}`)
             return -1;
         }
 
-        var did = (respond.payload[1] << 7) | respond.payload[2];
-        if ((0x0110 + index) != did) {
-            console.log("Invalid respond did 0x%s", did.toString(16));
-            errCb(`Invalid respond did 0x${did.toString(16)}`)
+        if (respond.payload[0] != (SID_READ_DATA_BY_IDENTIFIER + 0x40)) {
+            console.log("GetDutInfo Invalid SID 0x%s", respond.payload[0].toString(16));
+            errCb(`GetDutInfo Invalid SID 0x${respond.payload[0].toString(16)}`)
+            return -1;
+        }
+
+        var did = (respond.payload[1] << 8) | respond.payload[2];
+        if ((0x110 + index) != did) {
+            console.log("GetDutInfo Invalid respond did 0x%s", did.toString(16));
+            errCb(`GetDutInfo Invalid respond did 0x${did.toString(16)}`)
             return -1;
         }
         var sw = respond.payload[3];		/* 电源开关状态，备注：电源状态为关闭，并且该DUT需要测试时，代表当前DUT异常 */
         var avg = (respond.payload[4] << 8) | respond.payload[5];  /* 平均电流 */
         var max = (respond.payload[6] << 8) | respond.payload[7];  /* 峰值电源 */
-        cb(sw, avg, max);
+        cb(Date.now(),sw, avg, max);
         return 0;
     }
     return -1;
@@ -257,14 +256,15 @@ function SetupDutPower(setting,flags, errCb) {
  * 选择通信抽屉
  * index, 抽屉索引，范围 0 - 20, 0 为全关闭
  */
-function SelectDrawer(index,successCb,errCb,) {
+function SelectDrawer(index,errCb) {
+    return 0;
     var request = Buffer.from([SID_WRITE_DATA_BY_IDENTIFIER, FRAME_DID_DRAWER_SELECT >> 8, FRAME_DID_DRAWER_SELECT, index]);
     /* 发送设置请求 */
     var ret = device.send(CANID_FRAME_HOST, request, 1000);
     // var ret = 0;
     if (0 != ret) {
-        console.log("Send request failure %d.", ret);
-        errCb(`RSend request failure ${ret}`)
+        console.log("SelectDrawer Send request failure %d.", ret);
+        errCb(`SelectDrawer Send request failure ${ret}`)
         return -1;
     }
     // return 0;
@@ -272,8 +272,8 @@ function SelectDrawer(index,successCb,errCb,) {
     while (1) {
         var respond = device.recv(1000);
         if (0 != respond.err) {
-            console.log("Recv respond failure %d.", respond.err);
-            errCb(`Recv respond failure ${respond.err}`)
+            console.log("SelectDrawer Recv respond failure %d.", respond.err);
+            errCb(`SelectDrawer Recv respond failure ${respond.err}`)
             return -1;
         }
 
@@ -282,15 +282,20 @@ function SelectDrawer(index,successCb,errCb,) {
         }
 
         if (respond.payload.length != 3) {
-            console.log("Invalid respond length %d", respond.payload.length);
-            errCb(`Invalid respond length ${respond.payload.length}`)
+            console.log("SelectDrawer Invalid respond length %d", respond.payload.length);
+            errCb(`SelectDrawer Invalid respond length ${respond.payload.length}`)
             return -1;
         }
 
+        if (respond.payload[0] != (SID_WRITE_DATA_BY_IDENTIFIER + 0x40)) {
+            console.log("SelectDrawer Invalid SID 0x%s", respond.payload[0].toString(16));
+            errCb(`SelectDrawer Invalid SID 0x${respond.payload[0].toString(16)}`)
+            return -1;
+        }
         var did = (respond.payload[1] << 8) | respond.payload[2];
         if (FRAME_DID_DRAWER_SELECT != did) {
-            console.log("Invalid respond did 0x%s", did.toString(16));
-            errCb(`Invalid respond did 0x${did.toString(16)}`)
+            console.log("SelectDrawer Invalid respond did 0x%s", did.toString(16));
+            errCb(`SelectDrawer Invalid respond did 0x${did.toString(16)}`)
             return -1;
         }
         // successCb()
