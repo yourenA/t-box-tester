@@ -13,6 +13,7 @@ const {
     CloseCanDevice,
     SetupDutPower,
     GetDutInfo,
+    GetAllDutInfo,
     SelectDrawer,
     sleep
 } = require('./saeUtil')
@@ -109,12 +110,11 @@ const helpMenu = template[template.length - 1].submenu
 addUpdateMenuItems(helpMenu, 0)
 
 let setting = {
-    "limit": 2800, //限制电流
-    "avg_min":2700,
-    "avg_max":2750,
-    "peak_min":2700,
-    "peak_max":2750,
-    "delay": 10000,
+    "limit_max":850,
+    "limit_min":800,
+    "pre_interval": 2,
+    "nor_interval": 60,
+    "nor_duration": 120
 }
 
 function createWindow() {
@@ -236,54 +236,46 @@ function createWindow() {
                 type: 'error',
                 title: 'Error',
                 message: err,
-            })
-            CloseCanDevice()
+            });
+            SetupDutPower(setting,0,()=>{});
+            CloseCanDevice();
             global.isTesting=false;
             mainWindow.webContents.send('changeStart',false)
-
         })
 
         if (setupResult === 0) {
             let end_at=Date.now()
-            console.log('delay',setting.delay)
-            await sleep(300)
+            console.log('delay',setting.pre_interval*1000-(end_at-start_at))
+            await sleep(setting.pre_interval*1000-(end_at-start_at))
             console.log('启动开始测试成功,开始获取测试信息')
             global.isTesting=true;
-            for (let i = 0; i < tbox.length; i++) {
-                if(global.isTesting){
-                    GetDutInfo(tbox[i], (time,sw, avg, max) => {
-                        console.log('获取测试信息',time, sw, avg, max)
-                        mainWindow.webContents.send('sendInfoFromMain', {
-                            index: tbox[i],
-                            time,sw, avg, max
-                        })
-                        if(i===tbox.length-1){
-                            CloseCanDevice()
-                            global.isTesting=false;
-                            mainWindow.webContents.send('changeStart',false)
-                            mainWindow.webContents.send('computeFailureCount')
-                        }
+            GetAllDutInfo( (result) => {
+                mainWindow.webContents.send('sendInfoFromMain', {
+                    result
+                })
+                CloseCanDevice()
+                global.isTesting=false;
+                mainWindow.webContents.send('changeStart',false)
 
-                    }, (err) => {
-                        if(i===tbox.length-1){
-                            CloseCanDevice()
-                            global.isTesting=false;
-                            mainWindow.webContents.send('changeStart',false)
-                        }
-                    })
-                }
-
-
-            }
+            }, (err) => {
+                CloseCanDevice()
+                global.isTesting=false;
+                mainWindow.webContents.send('changeStart',false)
+            })
         }
     });
+
     let hadSetupArr=[];
     //用户停止测试
     ipcMain.on('stopTest', (e) => {
+        for(let i=0;i<hadSetupArr.length;i++){
+            const closeResult=SetupDutPower(setting,0,()=>{});
+        }
         CloseCanDevice();
         hadSetupArr=[];
         global.isTesting=false;
-        mainWindow.webContents.send('changeStart',false)
+        mainWindow.webContents.send('changeStart',false);
+        mainWindow.webContents.send('computeFailureCount')
     });
 
 
@@ -318,19 +310,19 @@ function createWindow() {
 
             for(let i=0;i<selectedDrawers.length;i++){
                 if(hadSetupArr.indexOf(selectedDrawers[i].index)>=0){
-                    console.log('已经置DUT电源')
+                    // console.log('已经置DUT电源')
                 }else{
-                    let flags=''
-                    for(let k=0;k<selectedDrawers[i].tBox.length;k++){
-                        if(selectedDrawers[i].tBox[k].checked){
+                    let flags='';
+                    const reverseTBox=[...selectedDrawers[i].tBox].reverse()
+                    for(let k=0;k<reverseTBox.length;k++){
+                        if(reverseTBox[k].checked){
                             flags=flags+'1';
                         }else{
                             flags=flags+'0';
                         }
                     }
+                console.log('flags',flags)
                     let flags2=parseInt(Number(flags),2)
-                    console.log('flags',flags)
-                    console.log('flags2',flags2)
                     let setupResult = SetupDutPower(setting, flags2,(err) => {
                         mainWindow.webContents.send('computeFailureCount')
                     })
@@ -340,38 +332,27 @@ function createWindow() {
                         hadSetupArr.push(selectedDrawers[i].index)
                     }
                 }
-
-
-                console.log('开始选择抽屉')
-                console.log('选择抽屉',selectedDrawers[i].index);
+                let start_at=Date.now()
                 let selectDrawerResult=SelectDrawer(selectedDrawers[i].index,(err) => {
                 })
-                console.log('选择抽屉结果',selectDrawerResult);
                 if(selectDrawerResult===0){
-                    console.log('选择抽屉成功')
+                    // console.log('选择抽屉成功')
                     // global.isTesting=true;
-                    for (let j = 0; j < selectedDrawers[i].tBox.length; j++) {
-                        if(global.isTesting&&selectedDrawers[i].tBox[j].checked){
-                            GetDutInfo(selectedDrawers[i].tBox[j].index, (time,sw, avg, max) => {
-                                console.log('获取测试信息',time, sw, avg, max)
-                                mainWindow.webContents.send('sendInfoFromMain', {
-                                    drawerIndex:selectedDrawers[i].index,
-                                    tBoxIndex: selectedDrawers[i].tBox[j].index,
-                                    time,sw, avg, max
-                                })
+                    GetAllDutInfo( (result) => {
+                        mainWindow.webContents.send('sendInfoFromMain', {
+                            drawerIndex:selectedDrawers[i].index,
+                            result
+                        })
 
-                            }, (err) => {
-                            })
-                        }
-
-                        if((i===selectedDrawers.length-1)&&(j===selectedDrawers[i].tBox.length-1)){
-                            console.log('完成一轮测试')
-                            mainWindow.webContents.send('completeOneRound')
-                            mainWindow.webContents.send('computeFailureCount')
-                        }
-
-
+                    }, (err) => {
+                    })
+                    if((i===selectedDrawers.length-1)){
+                        // console.log('完成一轮测试')
+                        let end_at=Date.now()
+                        mainWindow.webContents.send('completeOneRound', setting.nor_interval*1000-(end_at-start_at))
+                        mainWindow.webContents.send('computeFailureCount')
                     }
+
                 }
             }
         }
@@ -387,7 +368,24 @@ function createWindow() {
             ]
         }, res => {
             console.log('res', res)
-            mainWindow.webContents.send('exportCSVFromMain', res);
+            if(res){
+                mainWindow.webContents.send('exportCSVFromMain', res);
+            }
+        })
+    });
+
+    //用户导出CSV
+    ipcMain.on('exportCSV2', (e) => {
+        dialog.showSaveDialog({
+            title: '导出',
+            filters: [
+                {name: 'csv', extensions: ['csv']},
+            ]
+        }, res => {
+            console.log('res', res)
+            if(res){
+                mainWindow.webContents.send('exportCSVFromMain2', res);
+            }
         })
     });
 

@@ -71,6 +71,7 @@ let SID_READ_DATA_BY_IDENTIFIER = 0x22;
 
 let FRAME_DID_DRAWER_SELECT = 0x0110;
 let DRAWER_DID_DUT_SWITCH = 0x0110;
+let DRAWER_DID_DUT_ALL = 0x0120;
 
 const binding = require('sae_j2534_api');
 const device = new binding.J2534();
@@ -132,23 +133,28 @@ function CloseCanDevice() {
     device.close();
 }
 
+
 /*
  * 设置DUT电源（启动关闭测试）
  * flags, 12位长度数值类型，每位代表对应的DUT电源开关，0为关，1为开
  * limit, 限制电流，单位毫安。超出该值时，自动关闭电源，范围：0 - 50000
  */
 function SetupDutPower(setting,flags, errCb) {
-    console.log('设置DUT电源...',flags)
     // return 0;
     var request = Buffer.from([SID_WRITE_DATA_BY_IDENTIFIER,
         DRAWER_DID_DUT_SWITCH >> 8,
         DRAWER_DID_DUT_SWITCH,
-        setting.limit >> 8,
-        setting.limit,
         flags >> 8,
-        flags]);
+        flags,
+        setting.limit_max >> 8,
+        setting.limit_max,
+        setting.limit_min >> 8,
+        setting.limit_min]);
     /* 发送设置请求 */
-    console.log('发送DUT电源设置请求...')
+    if(flags===0){
+        console.log('发送断电.')
+    }else{
+    }
     var ret = device.send(CANID_DRAWER_HOST, request, 1000);
     // var ret = 0
     if (0 != ret) {
@@ -156,7 +162,6 @@ function SetupDutPower(setting,flags, errCb) {
         errCb(`SetupDutPower Send request failure ${ret}`)
         return -1;
     }
-    console.log('发送DUT电源设置请求成功')
     /* 等待回复 */
     while (1) {
         var respond = device.recv(1000);
@@ -199,8 +204,8 @@ function SetupDutPower(setting,flags, errCb) {
  * index, DUT索引，范围 1 - 12
  * cb, 获取成功后回调函数
  */
- function  GetDutInfo(index, cb, errCb) {
-     console.log('index',index)
+function  GetDutInfo(index, cb, errCb) {
+    console.log('index',index)
     var request = Buffer.from([SID_READ_DATA_BY_IDENTIFIER, 0x01, 0x10 + index]);
     /* 发送设置请求 */
     var ret = device.send(CANID_DRAWER_HOST, request, 1000);
@@ -225,7 +230,7 @@ function SetupDutPower(setting,flags, errCb) {
 
         console.log('respond.payload',respond.payload)
 
-        if (respond.payload.length != 8) {
+        if (respond.payload.length != 10) {
             console.log("GetDutInfo Invalid respond length %d", respond.payload.length);
             errCb(`GetDutInfo Invalid respond length ${respond.payload.length}`)
             return -1;
@@ -245,8 +250,78 @@ function SetupDutPower(setting,flags, errCb) {
         }
         var sw = respond.payload[3];		/* 电源开关状态，备注：电源状态为关闭，并且该DUT需要测试时，代表当前DUT异常 */
         var avg = (respond.payload[4] << 8) | respond.payload[5];  /* 平均电流 */
-        var max = (respond.payload[6] << 8) | respond.payload[7];  /* 峰值电源 */
-        cb(Date.now(),sw, avg, max);
+        var max = (respond.payload[6] << 8) | respond.payload[7];  /* 最大电流 */
+        var min = (respond.payload[8] << 8) | respond.payload[9];  /* 最小电流 */
+        cb(Date.now(),sw, avg, max, min);
+        return 0;
+    }
+    return -1;
+}
+
+/*
+ * 获取测试信息
+ * index, DUT索引，范围 1 - 12
+ * cb, 获取成功后回调函数
+ */
+function  GetAllDutInfo(cb, errCb) {
+    var request = Buffer.from([SID_READ_DATA_BY_IDENTIFIER,
+        DRAWER_DID_DUT_ALL >> 8,
+        DRAWER_DID_DUT_ALL]);
+    /* 发送设置请求 */
+    var ret = device.send(CANID_DRAWER_HOST, request, 1000);
+    // var ret = 0
+    if (0 != ret) {
+        console.log("GetDutInfo Send request failure %d.", ret);
+        errCb(`GetDutInfo Send request failure ${ret}`)
+        return -1;
+    }
+    /* 等待回复 */
+    while (1) {
+        var respond = device.recv(1000);
+        if (0 != respond.err) {
+            console.log("GetDutInfo Recv respond failure %d.", respond.err);
+            errCb(`GetDutInfo Recv respond  failure ${respond.err}`)
+            return -1;
+        }
+
+        if ((TX_MSG_TYPE | START_OF_MESSAGE) & respond.flags) {
+            continue;
+        }
+
+        console.log('respond.payload',respond.payload)
+
+        if (respond.payload.length < 10 || (respond.payload.length - 3) % 7 != 0) {
+            console.log("GetDutInfo Invalid respond length %d", respond.payload.length);
+            errCb(`GetDutInfo Invalid respond length ${respond.payload.length}`)
+            return -1;
+        }
+
+        if (respond.payload[0] != (SID_READ_DATA_BY_IDENTIFIER + 0x40)) {
+            console.log("GetDutInfo Invalid SID 0x%s", respond.payload[0].toString(16));
+            errCb(`GetDutInfo Invalid SID 0x${respond.payload[0].toString(16)}`)
+            return -1;
+        }
+
+        var did = (respond.payload[1] << 8) | respond.payload[2];
+        if (DRAWER_DID_DUT_ALL != did) {
+            console.log("GetDutInfo Invalid respond did 0x%s", did.toString(16));
+            errCb(`GetDutInfo Invalid respond did 0x${did.toString(16)}`)
+            return -1;
+        }
+
+        var time = Date.now();
+        var result=[]
+        for(var pos = 3, index = 1; pos < respond.payload.length; pos = pos +7) {
+            var sw = respond.payload[pos];		/* 电源开关状态，备注：电源状态为关闭，并且该DUT需要测试时，代表当前DUT异常 */
+            var avg = (respond.payload[pos + 1] << 8) | respond.payload[pos + 2];  /* 平均电流 */
+            var max = (respond.payload[pos + 3] << 8) | respond.payload[pos + 4];  /* 最大电流 */
+            var min = (respond.payload[pos + 5] << 8) | respond.payload[pos + 6];  /* 最小电流 */
+            result.push({
+                index, time,sw,min, avg, max
+            })
+            index++
+        }
+        cb(result)
         return 0;
     }
     return -1;
@@ -315,6 +390,7 @@ module.exports = {
     CloseCanDevice,
     SetupDutPower,
     GetDutInfo,
+    GetAllDutInfo,
     SelectDrawer,
     sleep
 };

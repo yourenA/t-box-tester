@@ -11,7 +11,7 @@ import Typography from '@material-ui/core/Typography';
 import Snackbar from '@material-ui/core/Snackbar';
 import MuiAlert from '@material-ui/lab/Alert';
 import IconButton from '@material-ui/core/IconButton';
-import Divider from '@material-ui/core/Divider';
+import InputAdornment from '@material-ui/core/InputAdornment';
 import MenuIcon from '@material-ui/icons/ArrowBack';
 import CancelScheduleSendIcon from '@material-ui/icons/CancelScheduleSend';
 import SaveIcon from '@material-ui/icons/Save';
@@ -24,8 +24,7 @@ import DialogContent from '@material-ui/core/DialogContent';
 import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import PlayCircleFilledWhiteIcon from '@material-ui/icons/PlayCircleFilledWhite';
-import BackupIcon from '@material-ui/icons/Backup';
-import DescriptionIcon from '@material-ui/icons/Description';
+import ViewQuiltIcon from '@material-ui/icons/ViewQuilt';
 import SelectAllIcon from '@material-ui/icons/SelectAll';
 import ErrorIcon from '@material-ui/icons/Error';
 import {withStyles, makeStyles} from '@material-ui/core/styles';
@@ -44,7 +43,7 @@ import MenuItem from '@material-ui/core/MenuItem';
 import FormControl from '@material-ui/core/FormControl';
 import Select from '@material-ui/core/Select';
 import ErrorOutlineIcon from '@material-ui/icons/ErrorOutline';
-import SettingsIcon from "@material-ui/core/SvgIcon/SvgIcon";
+import SettingsIcon from '@material-ui/icons/Settings';
 import AccessAlarmIcon from '@material-ui/icons/AccessAlarm';
 var Mousetrap = require('mousetrap');
 const StyledTableCell = withStyles(theme => ({
@@ -122,20 +121,20 @@ class App extends PureComponent {
         for (let i = 0; i < 20; i++) {
             this.state.drawers.push({
                 index: i + 1,
-                name: `抽屉${i + 1}`,
-                checkedAllTBox: false,
-                tBox: [{name: 'T-Box-1', index: 1, sw: '', avg: '', max: '', checked:false, time: ''},
-                    {name: 'T-Box-2', index: 2, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-3', index: 3, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-4', index: 4, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-5', index: 5, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-6', index: 6, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-7', index: 7, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-8', index: 8, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-9', index: 9, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-10', index: 10, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-11', index: 11, sw: '', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-12', index: 12, sw: '', avg: '', max: '', checked: false, time: ''},
+                name:Math.ceil((i+1)/4)+'-'+((i+1)%4===0?4:(i+1)%4),
+                checkedAllTBox: true,
+                tBox: [{name: 'T-Box-1', index: 1, sw: '',min:'', avg: '', max: '', checked:true, time: ''},
+                    {name: 'T-Box-2', index: 2, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-3', index: 3, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-4', index: 4, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-5', index: 5, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-6', index: 6, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-7', index: 7, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-8', index: 8, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-9', index: 9, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-10', index: 10, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-11', index: 11, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                    {name: 'T-Box-12', index: 12, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
                 ]
             })
         }
@@ -151,7 +150,8 @@ class App extends PureComponent {
         });
         ipcRenderer.on('getSettingFromMain', function (event, setting) {
             that.setState({
-                setting
+                setting,
+                testDuring:setting.nor_duration
             })
         });
         ipcRenderer.on('getDriversFromMain', function (event, message) {
@@ -173,8 +173,8 @@ class App extends PureComponent {
             })
         });
 
-        ipcRenderer.on('exportCSVFromMain', (event, message) => {
-            let opts = {fields: ['drawer_name','tBox_name', 'time', 'sw', 'avg(mA)', 'max(mA)']};
+        ipcRenderer.on('exportCSVFromMain2', (event, message) => {
+            let opts = {fields: ['drawer_name','tBox_name', 'time', 'sw', 'min(mA)','avg(mA)', 'max(mA)']};
             let csvContent = [];
             for (let i = 0; i < that.state.drawers.length; i++) {
                 for(let j=0;j<that.state.drawers[i].tBox.length;j++){
@@ -184,6 +184,7 @@ class App extends PureComponent {
                             tBox_name: that.state.drawers[i].tBox[j].name,
                             time: that.state.drawers[i].tBox[j].time,
                             sw: that.state.drawers[i].tBox[j].sw,
+                            [`min(mA)`]: that.state.drawers[i].tBox[j].min,
                             [`avg(mA)`]: that.state.drawers[i].tBox[j].avg,
                             [`max(mA)`]: that.state.drawers[i].tBox[j].max
                         })
@@ -217,14 +218,27 @@ class App extends PureComponent {
         ipcRenderer.on('sendInfoFromMain', (event, msg) => {
             for (let i = 0; i < that.state.drawers.length; i++) {
                 if (that.state.drawers[i].index === msg.drawerIndex) {
-                    for (let j = 0; j < that.state.drawers[i].tBox.length; j++) {
+                    for(let k=0;k<msg.result.length;k++){
+                        if (that.state.drawers[i].tBox[k].checked&&(that.state.drawers[i].tBox[k].index === msg.result[k].index)) {
+                            that.state.drawers[i].tBox[k].time = moment(msg.result[k].time).format('HH:mm:ss');
+                            that.state.drawers[i].tBox[k].sw = msg.result[k].sw;
+                            that.state.drawers[i].tBox[k].min = msg.result[k].min;
+                            that.state.drawers[i].tBox[k].avg = msg.result[k].avg;
+                            that.state.drawers[i].tBox[k].max = msg.result[k].max;
+                        }
+                    }
+                    that.setState({
+                        drawers:that.state.drawers
+                    })
+                  /*  for (let j = 0; j < that.state.drawers[i].tBox.length; j++) {
                         if (that.state.drawers[i].tBox[j].index === msg.tBoxIndex) {
                             that.state.drawers[i].tBox[j].time = moment(msg.time).format('HH:mm:ss');
                             that.state.drawers[i].tBox[j].sw = msg.sw;
+                            that.state.drawers[i].tBox[j].min = msg.min;
                             that.state.drawers[i].tBox[j].avg = msg.avg;
                             that.state.drawers[i].tBox[j].max = msg.max;
                         }
-                    }
+                    }*/
                 }
             }
             that.setState({
@@ -235,11 +249,7 @@ class App extends PureComponent {
             let  testTBoxFailureCount=0;
             for(let i=0;i<this.state.drawers.length;i++){
                 const failureCount=filter(this.state.drawers[i].tBox,row=>{
-                    return row.checked&& (Number(row.max)<that.state.setting.peak_min
-                        || Number(row.max)>that.state.setting.peak_max
-                        ||  Number(row.avg)<that.state.setting.avg_min
-                        || Number(row.max)>that.state.setting.avg_max
-                        || (Number(row.sw)===0))
+                    return  row.checked&& Number(row.sw)===0
                 }).length;
                 testTBoxFailureCount=testTBoxFailureCount+failureCount
             }
@@ -258,12 +268,16 @@ class App extends PureComponent {
                     that.setState({
                         leftTime:0
                     })
+                    if(that.timerOfLeft){
+                        clearInterval(that.timerOfLeft)
+                        that.timerOfLeft=null
+                    }
                 }
             })
         })
 
-        ipcRenderer.on('completeOneRound', (event, bool) => {
-            console.log('完成一轮测试',that.state.setting.delay)
+        ipcRenderer.on('completeOneRound', (event, delay) => {
+            console.log('完成一轮测试',delay)
             this.timer = setTimeout(() => {
                 if(that.state.isTesting){
                     that.startTest()
@@ -272,7 +286,7 @@ class App extends PureComponent {
                     clearTimeout(that.timer)
                 }
 
-            }, that.state.setting.delay?that.state.setting.delay:10000)
+            }, delay?delay:10000)
         })
 
         Mousetrap.bind('ctrl+d', () => {
@@ -323,10 +337,12 @@ class App extends PureComponent {
         if(this.timer){
             clearTimeout(this.timer)
         }
-        if(this.timer){
+        if(this.timerOfLeft){
             clearInterval(this.timerOfLeft)
             this.timerOfLeft=null
         }
+        ipcRenderer.send('stopTest');
+        ipcRenderer.removeAllListeners()
     }
     timeStamp=( second_time )=>{
         function fixZero(number) {
@@ -380,7 +396,7 @@ class App extends PureComponent {
     }
     exportCSV = () => {
         try {
-            ipcRenderer.send('exportCSV');
+            ipcRenderer.send('exportCSV2');
         } catch (err) {
             console.error(err);
         }
@@ -453,21 +469,10 @@ class App extends PureComponent {
         })
     }
     startTest = () => {
-        // for (let i = 0; i < this.state.drawers.length; i++) {
-        //     for (let j = 0; j < this.state.tBox.length; j++) {
-        //         this.state.drawers[i].tBox[j].sw = ''
-        //         this.state.drawers[i].tBox[j].time = ''
-        //         this.state.drawers[i].tBox[j].avg = ''
-        //         this.state.drawers[i].tBox[j].max = ''
-        //     }
-        //
-        // }
-        // this.setState({
-        //     drawers: [...this.state.drawers]
-        // })
         console.log('this.timerOfLeft',this.timerOfLeft)
         if(!this.timerOfLeft){
-            this.computeTime()
+            this.clearData()
+            this.computeTime();
         }
         this.setState({
             dialogOpen: false,
@@ -478,7 +483,20 @@ class App extends PureComponent {
         });
 
     }
-
+    clearData=()=>{
+        for (let i = 0; i < this.state.drawers.length; i++) {
+            for (let j = 0; j < this.state.drawers[i].tBox.length; j++) {
+                this.state.drawers[i].tBox[j].sw="";
+                this.state.drawers[i].tBox[j].time="";
+                this.state.drawers[i].tBox[j].avg="";
+                this.state.drawers[i].tBox[j].min="";
+                this.state.drawers[i].tBox[j].max="";
+            }
+        }
+        this.setState({
+            drawers:this.state.drawers
+        })
+    }
     computeTime=()=>{
         const testDuring=this.state.testDuring*60;
         console.log('测试时间:',testDuring);
@@ -604,10 +622,22 @@ class App extends PureComponent {
                                         let selectTBoxLenght = filter(item.tBox, (o) => {
                                             return o.checked
                                         }).length;
+                                        let hasError=false;
+                                        for(let i=0;i<item.tBox.length;i++){
+                                            let row2=item.tBox[i];
+                                            if(row2.checked&&
+                                                row2.time&&(Number(row2.sw)===0&&row2.checked
+                                                )){
+                                                hasError=true;
+                                                break;
+
+                                            }
+                                        }
                                         return (
                                             <div  className={'drawersItem'} key={index}>
                                                 <Button
-                                                    style={{width: '91px'}}
+
+                                                    style={{width: '95%'}}
                                                     onClick={() => {
                                                         this.setState({
                                                             nowDrawer: index,
@@ -616,7 +646,7 @@ class App extends PureComponent {
                                                     variant="contained" size={"small"}
                                                     color={index===this.state.nowDrawer?"primary":"default"}
                                                 >
-                                                    {item.name} ({selectTBoxLenght})
+                                                    {item.name} ({selectTBoxLenght}) <span  className={`${hasError?'hasError':''} status`}></span>
                                                 </Button>
                                             </div>
 
@@ -659,6 +689,7 @@ class App extends PureComponent {
                                                     <TableRow>
                                                         <StyledTableCell>
                                                             <Checkbox
+                                                                color="primary"
                                                                 disabled={this.state.isTesting}
                                                                 checked={this.state.drawers[this.state.nowDrawer] && this.state.drawers[this.state.nowDrawer].checkedAllTBox}
                                                                 onChange={() => this.checkedAll()}
@@ -666,7 +697,8 @@ class App extends PureComponent {
                                                         </StyledTableCell>
                                                         <StyledTableCell>TBox名称</StyledTableCell>
                                                         <StyledTableCell align="left">时间</StyledTableCell>
-                                                        <StyledTableCell align="left">电源开关状态</StyledTableCell>
+                                                        <StyledTableCell align="left">状态</StyledTableCell>
+                                                        <StyledTableCell align="left">最小电流(mA)</StyledTableCell>
                                                         <StyledTableCell align="left">平均电流(mA)</StyledTableCell>
                                                         <StyledTableCell align="left">峰值电流(mA)</StyledTableCell>
                                                     </TableRow>
@@ -676,15 +708,11 @@ class App extends PureComponent {
                                                         return (
                                                             <StyledTableRow
                                                                 className={`${row2.checked ? 'table-checked' : ''}
-                                                                  ${row2.time&&(    Number(row2.max)<this.state.setting.peak_min
-                                                                    || Number(row2.max)>this.state.setting.peak_max
-                                                                    ||  Number(row2.avg)<this.state.setting.avg_min
-                                                                    || Number(row2.max)>this.state.setting.avg_max
-                                                                    || (Number(row2.sw)===0&&row2.checked)
-                                                                ) ? 'error-row' : ''}`}
+                                                                  ${row2.time&&Number(row2.sw)===0&&row2.checked ? 'error-row' : ''}`}
                                                                 role="checkbox" key={row2.name}>
                                                                 <StyledTableCell padding="checkbox">
                                                                     <Checkbox
+                                                                        color="primary"
                                                                         disabled={this.state.isTesting}
                                                                         checked={row2.checked}
                                                                         onChange={() => this.handleChangeTBoxCheck(index2)}
@@ -696,8 +724,10 @@ class App extends PureComponent {
                                                                 </StyledTableCell>
                                                                 <StyledTableCell
                                                                     align="left">{row2.time}</StyledTableCell>
+
+                                                                <StyledTableCell align="left">{row2.sw.toString()&&<div className={`cicle ${row2.sw===0?"error-cicle":"success-cicle"}`}></div>}</StyledTableCell>
                                                                 <StyledTableCell
-                                                                    align="left">{row2.sw}</StyledTableCell>
+                                                                    align="left">{row2.min}</StyledTableCell>
                                                                 <StyledTableCell
                                                                     align="left">{row2.avg}</StyledTableCell>
                                                                 <StyledTableCell
@@ -718,7 +748,7 @@ class App extends PureComponent {
                     <Grid item xs={4} className={'right-content'}>
                         <div className={'rightTop'}>
                             <div >
-                                <h4 className={'total'}><SelectAllIcon /><span>抽屉总数 : {slectDrawers}</span></h4>
+                                <h4 className={'total'}><ViewQuiltIcon /><span>抽屉总数 : {slectDrawers}</span></h4>
                                 <h4 className={'total'}><SelectAllIcon /><span>测试总数 : {testTBoxCount}</span></h4>
                                 <h4 className={'failure'}><ErrorOutlineIcon/>异常总数 : <span>{this.state.testTBoxFailureCount}</span></h4>
                                 <h4 className={'total'}><AccessAlarmIcon/><span>剩余时间 : <span>{this.timeStamp(this.state.leftTime)}</span></span></h4>
@@ -727,9 +757,9 @@ class App extends PureComponent {
                         </div>
                         <div className="test-page">
                             <div className="drivers">
-                                <p className={'title'} style={{marginTop: '6px'}}>可选驱动</p>
-                                <div style={{marginTop: '12px'}}>
-                                    <FormControl style={{width: '100%'}}>
+                                <p className={'title'} >CAN设备:</p>
+                                <div className={'formContent'}>
+                                    <FormControl style={{width: '65%'}}>
                                         <Select
                                             className={'library-select'}
                                             style={{width: '100%'}}
@@ -745,13 +775,17 @@ class App extends PureComponent {
                                 </div>
                             </div>
                             <div className="drivers">
-                                <p className={'title'} style={{marginTop: '12px'}}>持续测试时间(分钟)</p>
-                                <div style={{marginTop: '12px'}}>
-                                    <FormControl style={{width: '100%'}}>
+                                <p className={'title'}>测试时长: </p>
+                                <div className={'formContent'}>
+                                    <FormControl style={{width: '65%'}}>
                                         <TextField
                                             id="filled-error"
                                             type="number"
                                             value={this.state.testDuring}
+                                            disabled={this.state.isTesting}
+                                            InputProps={{
+                                                endAdornment: <InputAdornment position="end">(分钟)</InputAdornment>,
+                                            }}
                                             onChange={(event)=>{
                                                 if(event.target.value<=0){
                                                     ipcRenderer.send('open-dialog', {
@@ -807,8 +841,7 @@ class App extends PureComponent {
                                     }
                                 </div>
                             </div>*/}
-                            <Divider light/>
-                            <div className="drivers" style={{marginTop: '12px'}}>
+                            <div  style={{marginTop: '12px'}}>
                                 <Button variant="contained" color="primary"
                                         disabled={this.state.isTesting}
                                         style={{marginRight: '12px',marginBottom: '12px'}}
@@ -855,7 +888,7 @@ class App extends PureComponent {
                                 </Button>
 
                                 {this.state.isTesting &&
-                                <div style={{marginTop: '12px'}}>
+                                <div >
                                     <Button variant="contained" color="secondary"
                                             onClick={() => {
                                                 if(this.timer){

@@ -50,11 +50,10 @@
 .rightTop h4{
     font-size: 24px;
     margin: 0 ;
-    margin-bottom: 12px;
+    margin-bottom: 25px;
 }
 .rightTop{
-    flex: 1;
-    padding: 25px;
+    padding: 25px 25px 0;
 }
 .rightTop h4.total{
     color: #222;
@@ -70,14 +69,22 @@
 }
 .test-page{
     flex: 1;
-  padding: 25px;
+  padding: 0 25px;
 }
 .drivers{
+    display: flex;
+    margin-bottom: 15px;
+
+}
+.formContent{
+    flex: 1;
 
 }
 .title{
     margin: 0;
-    font-size: 18px;
+    margin-top: 3px;
+    margin-right: 10px;
+    font-size: 16px;
     font-weight: bold;
 }
 .MuiDialogContentText-root{
@@ -102,12 +109,9 @@
     height:100%;
 }
 .table-checked{
-    background-color: cornsilk !important;
 }
 
 .error-row .MuiTableCell-root{
-    color: #ff0c05 !important;
-    font-weight: bold;
 }
 .null-dialog .MuiDialog-paperWidthSm{
     background: transparent;
@@ -147,12 +151,13 @@
 }
 .drawers button{
     margin-bottom: 12px;
-    margin-right: 12px;
 }
 .drawersItem{
     width: 25%;
     text-align: center;
-
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 @media (min-width: 600px){
@@ -169,7 +174,6 @@
     background: rgb(220, 0, 78);
 }
 .table-checked .MuiTableCell-stickyHeader{
-    background-color: cornsilk  !important;
 }
 .drawerName{
     background-color: #2e386e!important;
@@ -182,4 +186,30 @@
 }
 .MuiFilledInput-input{
     padding: 12px !important;
+}
+
+.status{
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 5px;
+    margin-top: 2px;
+    border-radius: 50%;
+    /*background: url("./status2.png") 100% center;*/
+}
+.hasError{
+    background:#ff0c05;
+
+}
+
+.cicle{
+    width:10px;
+    height: 10px;
+    border-radius: 50%;
+}
+.error-cicle{
+    background: #ff0c05;
+}
+.success-cicle{
+    background: #29b720;
 }
