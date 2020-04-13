@@ -1,5 +1,5 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow, ipcMain, dialog, MenuItem, Menu} = require('electron')
+const {app, BrowserWindow, ipcMain, dialog, MenuItem ,Menu} = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev')
 const os = require('os');
@@ -8,9 +8,6 @@ const handler = require('serve-handler');
 const autoUpdater = require("electron-updater").autoUpdater;
 const binding = require('sae_j2534_api');
 const device = new binding.J2534(); //实例化设备
-const AteApi = require('ate_tbox');
-const {filter}=require('lodash')
-
 const {
     OpenCanDevice,
     CloseCanDevice,
@@ -30,7 +27,7 @@ const {
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow; //mainWindow主窗口
 let preLibrary;
-let template = [{
+let template = [ {
     label: '查看',
     submenu: [{
         label: '重载',
@@ -98,15 +95,14 @@ let template = [{
         }
     }]
 }]
-
-function addUpdateMenuItems(items, position) {
+function addUpdateMenuItems (items, position) {
     if (process.mas) return
 
     const version = app.getVersion()
     let updateItems = [{
         label: `版本 ${version}`,
         enabled: false
-    }, {
+    },{
         label: '检查更新',
         key: 'checkForUpdate',
         click: () => {
@@ -116,16 +112,15 @@ function addUpdateMenuItems(items, position) {
 
     items.splice.apply(items, [position, 0].concat(updateItems))
 }
-
 const helpMenu = template[template.length - 1].submenu
 addUpdateMenuItems(helpMenu, 0)
 
 let setting = {
-    "limit_max": 850,
-    "limit_min": 800,
+    "limit_max":850,
+    "limit_min":800,
     "pre_interval": 2,
-    "nor_interval": 30,
-    "nor_duration": 3
+    "nor_interval": 60,
+    "nor_duration": 120
 }
 
 function createWindow() {
@@ -141,12 +136,12 @@ function createWindow() {
             devTools: true, //是否开启 DevTools
             nodeIntegration: true
         },
-        show: true
+        show: false
     })
     console.log('isDev', isDev)
     // and load the index.html of the app.
     let exePath = path.dirname(app.getPath('exe'));
-    console.log('exePath:', exePath)
+    console.log('exePath:',exePath)
     if (isDev) {
         mainWindow.loadURL("http://localhost:3000/");
         // Open the DevTools.
@@ -179,7 +174,7 @@ function createWindow() {
         mainWindow = null
     })
     mainWindow.once('ready-to-show', () => {
-        // mainWindow.show();
+        mainWindow.show();
         mainWindow.webContents.send('ping', 'whoooooooh!');
         updateHandle() //更新需要在页面显示之后，否则不能打印出相应的内容
         // createMbus()
@@ -188,27 +183,27 @@ function createWindow() {
     //用户获取setting
     ipcMain.on('getSetting', (e) => {
         console.log('用户获取setting')
-        fs.exists(exePath + '/setting.json', function (exists) {
+        fs.exists(exePath+'/setting.json', function(exists) {
             console.log(exists ? "文件存在" : "文件不存在");
-            if (exists) {
-                fs.readFile(exePath + '/setting.json', "utf-8", function (error, data) {
+            if(exists){
+                fs.readFile(exePath+'/setting.json', "utf-8", function (error, data) {
                     if (error) return console.log("读取文件失败" + error.message);
                     console.log(data)
                     setting = {...setting, ...JSON.parse(data)}
                     mainWindow.webContents.send('getSettingFromMain', setting);
                 });
-            } else {
+            }else{
                 mainWindow.webContents.send('getSettingFromMain', setting)
             }
         })
-        mainWindow.webContents.send('getExePathFromMain', exePath)
+        mainWindow.webContents.send('getExePathFromMain',exePath)
 
     });
 
     //用户获取驱动
     ipcMain.on('getDrivers', (e) => {
         console.log('用户获取驱动')
-        let arr = AteApi.drivers; //驱动列表
+        let arr = device.drivers; //驱动列表
         console.log('驱动个数：', arr.length)
         mainWindow.webContents.send('getDriversFromMain', arr)
     });
@@ -216,219 +211,159 @@ function createWindow() {
     //用户打开驱动
     ipcMain.on('openDrivers', (e, library) => {
         console.log('打开驱动', library);
-        preLibrary = library
-        mainWindow.webContents.send('openDriversFromMain', library)
+        preLibrary=library
+        mainWindow.webContents.send('openDriversFromMain',library)
     });
 
     //用户开始预测试
-    ipcMain.on('startTest', async (e, tbox, flags) => {
-        // console.log('tbox', tbox)
-        // console.log('flags', flags);
-        console.log('开始预测试')
-        if (0 !== AteApi.OpenDevice(preLibrary)) {
-            console.log('打开设备失败')
-            global.isTesting = false;
+    ipcMain.on('startTest', async (e, tbox,flags) => {
+        console.log('tbox', tbox)
+        console.log('flags', flags)
+        let openResult = OpenCanDevice({
+            ...setting,
+            library: preLibrary
+        }, async(err) => {
+            global.isTesting=false;
             openDialog({
                 type: 'error',
                 title: 'Error',
-                message: 'device open failure.',
+                message: err,
             })
-            console.log('打开设备失败')
-            mainWindow.webContents.send('changeStart', false);
-            return false
+            console.log('打开驱动失败')
+            mainWindow.webContents.send('changeStart',false)
+        })
+        if(openResult!==0){
+            return  false
         }
-        console.log('打开设备成功')
-
-        if (0 !== AteApi.SetupDutPower(flags, setting.limit_max, setting.limit_min)) {
-            console.log('设置DUT失败')
-            global.isTesting = false;
+        let start_at=Date.now()
+        let setupResult = SetupDutPower(setting,flags, (err) => {
+            global.isTesting=false;
             openDialog({
                 type: 'error',
                 title: 'Error',
-                message: "Setup Dut Power failure.",
+                message: err,
             });
-            mainWindow.webContents.send('changeStart', false)
-            return false
-        }
-        console.log('设置DUT成功')
-        global.isTesting = true;
-        if (0 !== AteApi.StartSingleTest(setting.pre_interval, function (event) {
-            if ("update" == event.event) {
-                console.log('接收信息成功')
-                let result = []
-                for (let i = 0; i < event.duts.length; i++) {
-                    result.push({
-                        index: i + 1,
-                        time: Date.now(),
-                        sw: event.duts[i].sw,
-                        min: event.duts[i].min,
-                        avg: event.duts[i].avg,
-                        max: event.duts[i].max
-                    })
-                }
+            SetupDutPower(setting,0,()=>{});
+            CloseCanDevice();
+            global.isTesting=false;
+            mainWindow.webContents.send('changeStart',false)
+        })
+
+        if (setupResult === 0) {
+            let end_at=Date.now()
+            console.log('delay',setting.pre_interval*1000-(end_at-start_at))
+            await sleep(setting.pre_interval*1000-(end_at-start_at))
+            console.log('启动开始测试成功,开始获取测试信息')
+            global.isTesting=true;
+            GetAllDutInfo( (result) => {
                 mainWindow.webContents.send('sendInfoFromMain', {
                     result
-                });
-                global.isTesting = false;
-                mainWindow.webContents.send('changeStart', false);
-            } else if ("exit" == event.event) {
-                console.log('测试结束，关闭设备')
-                if (0 !== AteApi.CloseDevice()) {
-                    console.log("device close failure.");
-                }
-            } else {
-                console.log("undefinition event %s.", event.event);
-            }
+                })
+                CloseCanDevice()
+                global.isTesting=false;
+                mainWindow.webContents.send('changeStart',false)
 
-
-        })) {
-            console.log('接收信息失败')
-            AteApi.CloseDevice();
-            openDialog({
-                type: 'error',
-                title: 'Error',
-                message: "Start Single Test failure.\"",
-            });
-            global.isTesting = false;
-            mainWindow.webContents.send('changeStart', false)
+            }, (err) => {
+                CloseCanDevice()
+                global.isTesting=false;
+                mainWindow.webContents.send('changeStart',false)
+            })
         }
     });
 
-    let hadSetupArr = [];
+    let hadSetupArr=[];
     //用户停止测试
-    function stopTest(){
-        console.log("尝试关闭设备")
-        for(let i=0;i<hadSetupArr.length;i++){
-            //选抽屉
-            if(0 !=AteApi.SetupDutPower(0,setting.limit_max, setting.limit_min)){
-                console.log('关闭DTU电源失败')
-            }
-        }
-        if (0 != AteApi.CloseDevice()) {
-            console.log("device close failure.");
-        } else {
-            console.log('关闭设备成功')
-            hadSetupArr = [];
-            global.isTesting = false;
-            mainWindow.webContents.send('changeStart', false);
-            mainWindow.webContents.send('computeFailureCount')
-        }
-    }
-
     ipcMain.on('stopTest', (e) => {
-        console.log("尝试关闭设备")
-        stopTest()
-
+        for(let i=0;i<hadSetupArr.length;i++){
+            const closeResult=SetupDutPower(setting,0,()=>{});
+        }
+        CloseCanDevice();
+        hadSetupArr=[];
+        global.isTesting=false;
+        mainWindow.webContents.send('changeStart',false);
+        mainWindow.webContents.send('computeFailureCount')
     });
+
 
 
     //用户开始正式测试
-    ipcMain.on('startFormalTest', async (e, selectedDrawers, drawers,testDuring) => {
-        console.log('selectedDrawers', selectedDrawers.length);
-        if (!global.isTesting) {
-            if (0 !== AteApi.OpenDevice(preLibrary)) {
-                global.isTesting = false;
+    ipcMain.on('startFormalTest', async (e, selectedDrawers) => {
+        console.log('selectedDrawers',selectedDrawers.length)
+        if(!global.isTesting){
+            let openResult = OpenCanDevice({
+                ...setting,
+                library: preLibrary
+            }, async(err) => {
+                global.isTesting=false;
                 openDialog({
                     type: 'error',
                     title: 'Error',
-                    message: 'device open failure.',
+                    message: err,
                 })
-                console.log('打开设备失败')
-                mainWindow.webContents.send('changeStart', false);
-                return false
-            } else {
-                console.log("打开设备成功")
-                global.isTesting = true;
-                mainWindow.webContents.send('changeStart', true)
+                console.log('打开驱动失败')
+                mainWindow.webContents.send('changeStart',false)
+            })
+            if(openResult!==0){
+                return  false
+            }else{
+                global.isTesting=true;
+                mainWindow.webContents.send('changeStart',true)
             }
         }
+
+
         if (global.isTesting) {
-            for (let i = 0; i < selectedDrawers.length; i++) {
-                console.log('%d-开始测试 ', selectedDrawers[i].index)
-                let flags = '';
-                const reverseTBox = [...selectedDrawers[i].tBox].reverse()
-                for (let k = 0; k < reverseTBox.length; k++) {
-                    if (reverseTBox[k].checked) {
-                        flags = flags + '1';
-                    } else {
-                        flags = flags + '0';
+
+            for(let i=0;i<selectedDrawers.length;i++){
+                if(hadSetupArr.indexOf(selectedDrawers[i].index)>=0){
+                    // console.log('已经置DUT电源')
+                }else{
+                    let flags='';
+                    const reverseTBox=[...selectedDrawers[i].tBox].reverse()
+                    for(let k=0;k<reverseTBox.length;k++){
+                        if(reverseTBox[k].checked){
+                            flags=flags+'1';
+                        }else{
+                            flags=flags+'0';
+                        }
                     }
-                }
-                let flags2 = parseInt(Number(flags), 2);
-                if (hadSetupArr.indexOf(selectedDrawers[i].index) >= 0) {
-                    console.log('%d-已经置DUT电源', selectedDrawers[i].index)
-                } else {
-                    //选抽屉
-                    if (0 !== AteApi.SetupDutPower(flags2, setting.limit_max, setting.limit_min)) {
-                        console.log('%d-设置电源失败', selectedDrawers[i].index)
+                    console.log('flags',flags)
+                    let flags2=parseInt(Number(flags),2)
+                    let setupResult = SetupDutPower(setting, flags2,(err) => {
                         mainWindow.webContents.send('computeFailureCount')
-                    } else {
-                        console.log('%d-设置电源成功', selectedDrawers[i].index)
+                    })
+                    if(setupResult!==0){
+                        continue
+                    }else{
                         hadSetupArr.push(selectedDrawers[i].index)
                     }
                 }
-            }
-            let drawersFlags = 0;
-            const reverseDrawers =drawers;
-            for (let m = 0; m <reverseDrawers.length; m++) {
-                let exitTBoxfilter = filter(reverseDrawers[m].tBox, i => {
-                    return i.checked
-                });
-                if (exitTBoxfilter.length > 0) {
-                    drawersFlags |= 0x1 << m;
-                }
-            }
-            console.log('testDuring',testDuring*60);
-            if (0 !== AteApi.StartMultiTest(setting.nor_interval, testDuring*60, drawersFlags, function (event) {
+                let start_at=Date.now()
 
-                if ("update" == event.event) {
-                    let testDrawersfilter = filter(selectedDrawers, i => {
-                        return event.index==i.index;
-                    });
-                    console.log('event.index:',event.index)
-                    if(testDrawersfilter){
-                        console.log('%d-接收成功', event.index)
-                        let result = []
-                        for (let j = 0; j < event.duts.length; j++) {
-                            result.push({
-                                index: j + 1,
-                                time: Date.now(),
-                                sw: event.duts[j].sw,
-                                min: event.duts[j].min,
-                                avg: event.duts[j].avg,
-                                max: event.duts[j].max
-                            })
-                        }
-                        console.log('%d-渲染数据', event.index)
+
+
+                let selectDrawerResult=SelectDrawer(selectedDrawers[i].index,(err) => {
+                })
+                if(selectDrawerResult===0){
+                    // console.log('选择抽屉成功')
+                    // global.isTesting=true;
+                    GetAllDutInfo( (result) => {
                         mainWindow.webContents.send('sendInfoFromMain', {
-                            drawerIndex: event.index,
+                            drawerIndex:selectedDrawers[i].index,
                             result
                         })
+
+                    }, (err) => {
+                    })
+                    if((i===selectedDrawers.length-1)){
+                        // console.log('完成一轮测试')
+                        let end_at=Date.now()
+                        mainWindow.webContents.send('completeOneRound', setting.nor_interval*1000-(end_at-start_at))
+                        mainWindow.webContents.send('computeFailureCount')
                     }
-                if(event.index==20){
-                    mainWindow.webContents.send('computeFailureCount')
+
                 }
-
-
-                } else if ("exit" == event.event) {
-                    console.log('测试完成', event.index);
-                    stopTest();
-                    mainWindow.webContents.send('computeFailureCount')
-
-                } else {
-                    console.log("undefinition event %s.", event.event);
-                }
-
-            })) {
-                console.log('测试失败');
-                stopTest();
-                mainWindow.webContents.send('computeFailureCount')
-            }else{
-                mainWindow.webContents.send('startComputeTime')
             }
-
-
-
         }
 
     });
@@ -442,7 +377,7 @@ function createWindow() {
             ]
         }, res => {
             console.log('res', res)
-            if (res) {
+            if(res){
                 mainWindow.webContents.send('exportCSVFromMain', res);
             }
         })
@@ -457,7 +392,7 @@ function createWindow() {
             ]
         }, res => {
             console.log('res', res)
-            if (res) {
+            if(res){
                 mainWindow.webContents.send('exportCSVFromMain2', res);
             }
         })
@@ -495,7 +430,7 @@ function createWindow() {
 }
 
 function openDialog(message) {
-    dialog.showMessageBox(mainWindow, {
+    dialog.showMessageBox(mainWindow,{
         type: message.type,
         title: message.title,
         message: message.message,
@@ -529,47 +464,47 @@ function updateHandle() {
     autoUpdater.autoDownload = false //不强制下载
     autoUpdater.on('error', function (error) {
         sendUpdateMessage({
-            type: 'error',
-            message: message.error
+            type:'error',
+            message:message.error
         })
     });
     autoUpdater.on('checking-for-update', function () {
         sendUpdateMessage({
-            type: 'info',
-            message: message.checking
+            type:'info',
+            message:message.checking
         })
     });
     autoUpdater.on('update-available', function (info) {
         sendUpdateMessage({
-            type: 'info',
-            message: message.updateAva
+            type:'info',
+            message:message.updateAva
         })
         autoUpdater.downloadUpdate().then(res => { //下载更新
             sendUpdateMessage({
-                type: 'success',
-                message: '下载更新'
+                type:'success',
+                message:'下载更新'
             })
         });
     });
     autoUpdater.on('update-not-available', function (info) {
         sendUpdateMessage({
-            type: 'success',
-            message: message.updateNotAva
+            type:'success',
+            message:message.updateNotAva
         })
     });
 
     // 更新下载进度事件
     autoUpdater.on('download-progress', function (progressObj) {
         sendUpdateMessage({
-            type: 'info',
-            message: '检测到新版本，正在下载: ' + Number(progressObj.percent).toFixed(2) + " %"
+            type:'info',
+            message:'检测到新版本，正在下载: '+Number(progressObj.percent).toFixed(2)+" %"
         })
     })
 
     autoUpdater.on('update-downloaded', function (event, releaseNotes, releaseName, releaseDate, updateUrl, quitAndUpdate) {
         sendUpdateMessage({
-            type: 'success',
-            message: '下载完成，开始更新'
+            type:'success',
+            message:'下载完成，开始更新'
         })
         autoUpdater.quitAndInstall();
 
@@ -590,7 +525,6 @@ function updateHandle() {
     });
 
 }
-
 function sendUpdateMessage(msg) {
     mainWindow.webContents.send('updateMessage', msg)
 }

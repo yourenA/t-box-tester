@@ -360,7 +360,16 @@ class App extends PureComponent {
                 <AppBar position="fixed">
                     <Toolbar style={{display:'flex'}}>
                         <IconButton onClick={() => {
-                            this.props.history.replace('/')
+                            if(!this.state.isTesting){
+                                this.props.history.replace('/')
+                            }else{
+                                ipcRenderer.send('open-dialog', {
+                                    type: "error",
+                                    title: "Error",
+                                    message: '退出前请先停止测试'
+                                });
+                            }
+
                         }} edge="start" color="inherit" aria-label="menu">
                             <MenuIcon/>
                         </IconButton>

@@ -289,6 +289,14 @@ class App extends PureComponent {
             }, delay?delay:10000)
         })
 
+
+        ipcRenderer.on('startComputeTime', () => {
+            if(!that.timerOfLeft){
+                that.clearData()
+                that.computeTime();
+            }
+        })
+
         Mousetrap.bind('ctrl+d', () => {
             if (this.state.isTesting) {
                 return;
@@ -470,16 +478,13 @@ class App extends PureComponent {
     }
     startTest = () => {
         console.log('this.timerOfLeft',this.timerOfLeft)
-        if(!this.timerOfLeft){
-            this.clearData()
-            this.computeTime();
-        }
+
         this.setState({
             dialogOpen: false,
             // startLoading: true,
             isTesting: true,
         }, function () {
-            ipcRenderer.send('startFormalTest', this.state.selectedDrawers);
+            ipcRenderer.send('startFormalTest', this.state.selectedDrawers,this.state.drawers,this.state.testDuring);
         });
 
     }
@@ -519,7 +524,7 @@ class App extends PureComponent {
                         that.timerOfLeft=null
                     }
 
-                    ipcRenderer.send('stopTest');
+                    // ipcRenderer.send('stopTest');
                 }
             })
         },1000)
@@ -545,7 +550,15 @@ class App extends PureComponent {
                 <AppBar position="fixed">
                     <Toolbar style={{display:'flex'}}>
                         <IconButton onClick={() => {
-                            this.props.history.replace('/')
+                            if(!this.state.isTesting){
+                                this.props.history.replace('/')
+                            }else{
+                                ipcRenderer.send('open-dialog', {
+                                    type: "error",
+                                    title: "Error",
+                                    message: '退出前请先停止测试'
+                                });
+                            }
                         }} edge="start" color="inherit" aria-label="menu">
                             <MenuIcon/>
                         </IconButton>
@@ -571,51 +584,6 @@ class App extends PureComponent {
                     <Grid item xs={8}>
                         <div className={'table-content'}>
 
-                 {/*           <TableContainer
-                                style={{maxHeight: ' calc(100vh - 100px)', border: '1px solid #333'}}>
-                                <Table size="small" >
-                                    {
-                                        this.state.drawers.map((row, index) => {
-                                            return <TableHead key={index}>
-                                                <TableRow>
-                                                    <StyledTableCell colSpan={6}
-                                                                     className={'drawerName'}
-                                                                     align="center">{row.name}</StyledTableCell>
-
-                                                </TableRow>
-                                                <TableRow>
-                                                    <StyledTableCell>TBox名称</StyledTableCell>
-                                                    <StyledTableCell align="left">时间</StyledTableCell>
-                                                    <StyledTableCell align="left">电源开关状态</StyledTableCell>
-                                                    <StyledTableCell align="left">平均电流(mA)</StyledTableCell>
-                                                    <StyledTableCell align="left">峰值电流(mA)</StyledTableCell>
-                                                </TableRow>
-                                                {row.tBox.map((row2, index2) => {
-                                                    return (
-                                                        <StyledTableRow
-                                                            key={index2}
-                                                            className={`${row2.checked ? 'table-checked' : ''}  ${(Number(row2.sw) < this.state.setting.sw_min || Number(row2.sw) > this.state.setting.sw_max) ? 'error-row' : ''}`}
-                                                            role="checkbox" key={row2.name}>
-                                                            <TableCell scope="row">
-                                                                {row2.name}
-                                                            </TableCell>
-                                                            <TableCell
-                                                                align="left">{row2.time}</TableCell>
-                                                            <TableCell
-                                                                align="left">{row2.sw}</TableCell>
-                                                            <TableCell
-                                                                align="left">{row2.avg}</TableCell>
-                                                            <TableCell
-                                                                align="left">{row2.max}</TableCell>
-                                                        </StyledTableRow>
-                                                    )
-                                                })
-                                                }
-                                            </TableHead>
-                                        })
-                                    }
-                                </Table>
-                            </TableContainer>*/}
                             <div style={{marginTop: '12px'}} className={'drawers'}>
                                 {
                                     this.state.drawers.map((item, index) => {
@@ -654,25 +622,6 @@ class App extends PureComponent {
                                     })
                                 }
                             </div>
-                      {/*  <Tabs
-                                style={{ background: '#333'}}
-                                variant="scrollable"
-                                scrollButtons="auto"
-                                value={this.state.nowDrawer}
-                                onChange={(event, newValue) => {
-                                    this.setState({
-                                        nowDrawer: newValue
-                                    })
-                                }}
-                                aria-label="Vertical tabs example"
-                            >
-                                {this.state.drawers.map((row, index) => {
-                                    let selectTBoxLenght = filter(row.tBox, (o) => {
-                                        return o.checked
-                                    }).length;
-                                    return <Tab key={index} label={`${row.name} (${selectTBoxLenght})`} {...a11yProps(index)} />
-                                })}
-                            </Tabs>*/}
                             {this.state.drawers.map((row, index) => {
                                 return <Typography
                                     key={index}
@@ -689,7 +638,6 @@ class App extends PureComponent {
                                                     <TableRow>
                                                         <StyledTableCell>
                                                             <Checkbox
-                                                                color="primary"
                                                                 disabled={this.state.isTesting}
                                                                 checked={this.state.drawers[this.state.nowDrawer] && this.state.drawers[this.state.nowDrawer].checkedAllTBox}
                                                                 onChange={() => this.checkedAll()}
@@ -787,7 +735,7 @@ class App extends PureComponent {
                                                 endAdornment: <InputAdornment position="end">(分钟)</InputAdornment>,
                                             }}
                                             onChange={(event)=>{
-                                                if(event.target.value<=0){
+                                                if(event.target.value<0){
                                                     ipcRenderer.send('open-dialog', {
                                                         type: "error",
                                                         title: "Error",
