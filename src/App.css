@@ -1,7 +1,12 @@
 .App {
   text-align: center;
 }
-
+.setting{
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    z-index: 99;
+}
 .App-logo {
   height: 20vmin;
   pointer-events: none;
@@ -212,4 +217,7 @@
 }
 .success-cicle{
     background: #29b720;
+}
+.drawer-content{
+    padding: 30px;
 }

@@ -6,26 +6,9 @@ const os = require('os');
 const fs = require('fs');
 const handler = require('serve-handler');
 const autoUpdater = require("electron-updater").autoUpdater;
-const binding = require('sae_j2534_api');
-const device = new binding.J2534(); //实例化设备
 const AteApi = require('ate_tbox');
 const {filter}=require('lodash')
 
-const {
-    OpenCanDevice,
-    CloseCanDevice,
-    SetupDutPower,
-    GetDutInfo,
-    GetAllDutInfo,
-    SelectDrawer,
-    sleep
-} = require('./saeUtil');
-const {
-    doTest,
-    multiTest,
-    singleTest,
-    testDone
-} = require('./ateUtil')
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow; //mainWindow主窗口
@@ -121,11 +104,6 @@ const helpMenu = template[template.length - 1].submenu
 addUpdateMenuItems(helpMenu, 0)
 
 let setting = {
-    "limit_max": 850,
-    "limit_min": 800,
-    "pre_interval": 2,
-    "nor_interval": 30,
-    "nor_duration": 3
 }
 
 function createWindow() {
@@ -185,9 +163,18 @@ function createWindow() {
         // createMbus()
     })
 
+    //用户设置setting
+    ipcMain.on('setSetting', (e,set) => {
+        console.log('用户设置setting')
+        setting=set
+    });
+
+
     //用户获取setting
     ipcMain.on('getSetting', (e) => {
-        console.log('用户获取setting')
+        console.log('用户获取setting');
+        mainWindow.webContents.send('getSettingFromMain', setting)
+        return
         fs.exists(exePath + '/setting.json', function (exists) {
             console.log(exists ? "文件存在" : "文件不存在");
             if (exists) {
@@ -223,7 +210,7 @@ function createWindow() {
     //用户开始预测试
     ipcMain.on('startTest', async (e, tbox, flags) => {
         // console.log('tbox', tbox)
-        // console.log('flags', flags);
+        console.log('setting', setting);
         console.log('开始预测试')
         if (0 !== AteApi.OpenDevice(preLibrary)) {
             console.log('打开设备失败')
@@ -297,7 +284,6 @@ function createWindow() {
     let hadSetupArr = [];
     //用户停止测试
     function stopTest(){
-        console.log("尝试关闭设备")
         for(let i=0;i<hadSetupArr.length;i++){
             //选抽屉
             if(0 !=AteApi.SetupDutPower(0,setting.limit_max, setting.limit_min)){
@@ -316,15 +302,19 @@ function createWindow() {
     }
 
     ipcMain.on('stopTest', (e) => {
-        console.log("尝试关闭设备")
-        stopTest()
+        console.log("尝试关闭设备");
+        mainWindow.webContents.send('changeStart', undefined);
+        AteApi.StopMultiTest()
 
     });
 
 
     //用户开始正式测试
     ipcMain.on('startFormalTest', async (e, selectedDrawers, drawers,testDuring) => {
+
+        console.log('setting', setting);
         console.log('selectedDrawers', selectedDrawers.length);
+
         if (!global.isTesting) {
             if (0 !== AteApi.OpenDevice(preLibrary)) {
                 global.isTesting = false;
@@ -411,7 +401,7 @@ function createWindow() {
 
 
                 } else if ("exit" == event.event) {
-                    console.log('测试完成', event.index);
+                    console.log('测试完成');
                     stopTest();
                     mainWindow.webContents.send('computeFailureCount')
 
@@ -421,6 +411,11 @@ function createWindow() {
 
             })) {
                 console.log('测试失败');
+                openDialog({
+                    type: 'error',
+                    title: 'Error',
+                    message: '测试失败',
+                })
                 stopTest();
                 mainWindow.webContents.send('computeFailureCount')
             }else{

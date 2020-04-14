@@ -264,7 +264,7 @@ class App extends PureComponent {
             that.setState({
                 isTesting: bool
             },function () {
-                if(!that.state.isTesting){
+                if(that.state.isTesting===false){
                     that.setState({
                         leftTime:0
                     })
@@ -565,17 +565,6 @@ class App extends PureComponent {
                         <Typography variant="h6" style={{flex:1}}>
                             老化抽屉正式测试
                         </Typography>
-                        <IconButton  color="secondary"
-                                     title={'如果需要自定义配置，请在exe安装目录新建setting.json文件'}
-                                     onClick={()=>{
-                                         this.setState({
-                                             drawerOpen:!this.state.drawerOpen
-                                         })
-                                     }}>
-                            <SettingsIcon
-                                style={{ color: '#fff' }}
-                            />
-                        </IconButton>
 
 
                     </Toolbar>
@@ -835,9 +824,10 @@ class App extends PureComponent {
                                     导出CSV(ctrl+e)
                                 </Button>
 
-                                {this.state.isTesting &&
+                                {(this.state.isTesting|| this.state.isTesting===null)&&
                                 <div >
                                     <Button variant="contained" color="secondary"
+                                            disabled={this.state.isTesting===null}
                                             onClick={() => {
                                                 if(this.timer){
                                                     clearTimeout(this.timer)
@@ -849,7 +839,7 @@ class App extends PureComponent {
 
                                                 ipcRenderer.send('stopTest');
                                             }} startIcon={<CancelScheduleSendIcon/>}>
-                                        结束测试
+                                        {this.state.isTesting===null?"正在结束测试...":"结束测试"}
                                     </Button>
                                 </div>
 

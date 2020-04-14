@@ -376,17 +376,6 @@ class App extends PureComponent {
                         <Typography variant="h6" style={{flex:1}}>
                             老化抽屉预测试
                         </Typography>
-                        <IconButton  color="secondary"
-                                     title={'如果需要自定义配置，请在exe安装目录新建setting.json文件'}
-                                    onClick={()=>{
-                                        this.setState({
-                                            drawerOpen:!this.state.drawerOpen
-                                        })
-                                    }}>
-                            <SettingsIcon
-                                style={{ color: '#fff' }}
-                            />
-                        </IconButton>
 
 
                     </Toolbar>
