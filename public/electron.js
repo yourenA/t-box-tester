@@ -93,6 +93,7 @@ function addUpdateMenuItems(items, position) {
         label: '检查更新',
         key: 'checkForUpdate',
         click: () => {
+            console.log('检查更新')
             autoUpdater.checkForUpdates();
         }
     }]
@@ -109,9 +110,7 @@ let setting = {
 function createWindow() {
     // Create the browser window.
     mainWindow = new BrowserWindow({
-        width: 1200,
         minWidth: 1200,
-        height: 740,
         minHeight: 740,
         icon: './favicon.png',
         center: true,
@@ -119,7 +118,7 @@ function createWindow() {
             devTools: true, //是否开启 DevTools
             nodeIntegration: true
         },
-        show: true
+        show: false
     })
     console.log('isDev', isDev)
     // and load the index.html of the app.
@@ -157,7 +156,8 @@ function createWindow() {
         mainWindow = null
     })
     mainWindow.once('ready-to-show', () => {
-        // mainWindow.show();
+        mainWindow.maximize();
+        mainWindow.show();
         mainWindow.webContents.send('ping', 'whoooooooh!');
         updateHandle() //更新需要在页面显示之后，否则不能打印出相应的内容
         // createMbus()
@@ -513,6 +513,7 @@ app.on('activate', function () {
 
 
 function updateHandle() {
+    console.log('updateHandle')
     let message = {
         error: '检查更新出错',
         checking: '正在检查更新……',
