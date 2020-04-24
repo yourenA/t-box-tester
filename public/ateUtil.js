@@ -64,7 +64,7 @@ function doTest() {
         // process.exit();
     }
     // singleTest();
-    //multiTest();
+    multiTest();
 }
 module.exports = {
     doTest,

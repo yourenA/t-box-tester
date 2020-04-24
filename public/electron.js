@@ -344,14 +344,38 @@ function createWindow() {
                         flags = flags + '0';
                     }
                 }
+
                 let flags2 = parseInt(Number(flags), 2);
                 if (hadSetupArr.indexOf(selectedDrawers[i].index) >= 0) {
                     console.log('%d-已经置DUT电源', selectedDrawers[i].index)
                 } else {
                     //选抽屉
+
+                    if (0 !== AteApi.SelectDrawer(selectedDrawers[i].index)) {
+                        console.log('%d-选抽屉失败', selectedDrawers[i].index);
+                        openDialog({
+                            type: 'error',
+                            title: 'Error',
+                            message: `打开"抽屉${selectedDrawers[i].index}"失败，请先解决问题后再重试`,
+                        })
+                        stopTest();
+                        mainWindow.webContents.send('computeFailureCount')
+                        return  false;
+                    }else{
+                        console.log('%d-选抽屉成功', selectedDrawers[i].index);
+                    }
+
                     if (0 !== AteApi.SetupDutPower(flags2, setting.limit_max, setting.limit_min)) {
                         console.log('%d-设置电源失败', selectedDrawers[i].index)
-                        mainWindow.webContents.send('computeFailureCount')
+                        openDialog({
+                            type: 'error',
+                            title: 'Error',
+                            message: `设置"抽屉${selectedDrawers[i].index}"电源失败，请先解决问题后再重试`,
+                        })
+                        stopTest();
+                        mainWindow.webContents.send('computeFailureCount');
+                        return  false;
+
                     } else {
                         console.log('%d-设置电源成功', selectedDrawers[i].index)
                         hadSetupArr.push(selectedDrawers[i].index)
@@ -419,6 +443,7 @@ function createWindow() {
                 stopTest();
                 mainWindow.webContents.send('computeFailureCount')
             }else{
+                console.log('开始计算时间');
                 mainWindow.webContents.send('startComputeTime')
             }
 
