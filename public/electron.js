@@ -226,7 +226,7 @@ function createWindow() {
         }
         console.log('打开设备成功')
 
-        if (0 !== AteApi.SetupDutPower(flags, setting.limit_max, setting.limit_min)) {
+        if (0 !== AteApi.SetupDutPower(flags, setting.limit_min, setting.limit_max)) {
             console.log('设置DUT失败')
             global.isTesting = false;
             openDialog({
@@ -234,6 +234,9 @@ function createWindow() {
                 title: 'Error',
                 message: "Setup Dut Power failure.",
             });
+            if (0 !== AteApi.CloseDevice()) {
+                console.log("device close failure.");
+            }
             mainWindow.webContents.send('changeStart', false)
             return false
         }
@@ -260,6 +263,11 @@ function createWindow() {
                 mainWindow.webContents.send('changeStart', false);
             } else if ("exit" == event.event) {
                 console.log('测试结束，关闭设备')
+                if (0 !== AteApi.SetupDutPower(0, setting.limit_min,setting.limit_max)) {
+                    console.log("关闭电源失败.");
+                }else{
+                    console.log('关闭电源成功')
+                }
                 if (0 !== AteApi.CloseDevice()) {
                     console.log("device close failure.");
                 }
@@ -286,10 +294,19 @@ function createWindow() {
     function stopTest(){
         for(let i=0;i<hadSetupArr.length;i++){
             //选抽屉
-            if(0 !=AteApi.SetupDutPower(0,setting.limit_max, setting.limit_min)){
+            if (0 !== AteApi.SelectDrawer(hadSetupArr[i])) {
+                console.log('%d-选抽屉失败', hadSetupArr[i]);
+            }else{
+                console.log('%d-选抽屉成功', hadSetupArr[i]);
+            }
+
+            if(0 !==AteApi.SetupDutPower(0, setting.limit_min,setting.limit_max)){
                 console.log('关闭DTU电源失败')
             }
         }
+
+        AteApi.SelectDrawer(0);
+
         if (0 != AteApi.CloseDevice()) {
             console.log("device close failure.");
         } else {
@@ -365,7 +382,7 @@ function createWindow() {
                         console.log('%d-选抽屉成功', selectedDrawers[i].index);
                     }
 
-                    if (0 !== AteApi.SetupDutPower(flags2, setting.limit_max, setting.limit_min)) {
+                    if (0 !== AteApi.SetupDutPower(flags2, setting.limit_min, setting.limit_max)) {
                         console.log('%d-设置电源失败', selectedDrawers[i].index)
                         openDialog({
                             type: 'error',
