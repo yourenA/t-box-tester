@@ -7,12 +7,13 @@ const fs = require('fs');
 const handler = require('serve-handler');
 const autoUpdater = require("electron-updater").autoUpdater;
 const AteApi = require('ate_tbox');
-const {filter}=require('lodash')
+const {filter} = require('lodash')
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow; //mainWindow主窗口
 let preLibrary;
+let defaultPath=''
 let template = [{
     label: '查看',
     submenu: [{
@@ -104,8 +105,7 @@ function addUpdateMenuItems(items, position) {
 const helpMenu = template[template.length - 1].submenu
 addUpdateMenuItems(helpMenu, 0)
 
-let setting = {
-}
+let setting = {}
 
 function createWindow() {
     // Create the browser window.
@@ -122,8 +122,7 @@ function createWindow() {
     })
     console.log('isDev', isDev)
     // and load the index.html of the app.
-    let exePath = path.dirname(app.getPath('exe'));
-    console.log('exePath:', exePath)
+
     if (isDev) {
         mainWindow.loadURL("http://localhost:3000/");
         // Open the DevTools.
@@ -147,7 +146,9 @@ function createWindow() {
         //     slashes: true
         // }))
     }
-
+    let exePath = path.dirname(app.getPath('exe'));
+    console.log('exePath:', exePath);
+    defaultPath=exePath;
     const menu = Menu.buildFromTemplate(template)
     Menu.setApplicationMenu(menu)
 
@@ -163,10 +164,27 @@ function createWindow() {
         // createMbus()
     })
 
+    ipcMain.on('getURL',(e)=>{
+        let exePath = path.dirname(app.getPath('exe'));
+        console.log('exePath:', exePath)
+        mainWindow.webContents.send('getExePathFromMain', exePath);
+
+    })
+
     //用户设置setting
-    ipcMain.on('setSetting', (e,set) => {
+    ipcMain.on('setSetting', (e, set) => {
         console.log('用户设置setting')
-        setting=set
+        setting = set;
+    });
+    //用户获取version
+    ipcMain.on('getVersion', (e, set) => {
+        const version = app.getVersion();
+        mainWindow.webContents.send('getVersionFromMain', version);
+    });
+
+    //获取defaultPath
+    ipcMain.on('getDefaultPath', (e, path) => {
+        defaultPath=path
     });
 
 
@@ -174,16 +192,9 @@ function createWindow() {
     ipcMain.on('getSetting', (e) => {
         console.log('用户获取setting');
         mainWindow.webContents.send('getSettingFromMain', setting)
-        return
         fs.exists(exePath + '/setting.json', function (exists) {
             console.log(exists ? "文件存在" : "文件不存在");
             if (exists) {
-                fs.readFile(exePath + '/setting.json', "utf-8", function (error, data) {
-                    if (error) return console.log("读取文件失败" + error.message);
-                    console.log(data)
-                    setting = {...setting, ...JSON.parse(data)}
-                    mainWindow.webContents.send('getSettingFromMain', setting);
-                });
             } else {
                 mainWindow.webContents.send('getSettingFromMain', setting)
             }
@@ -263,9 +274,9 @@ function createWindow() {
                 mainWindow.webContents.send('changeStart', false);
             } else if ("exit" == event.event) {
                 console.log('测试结束，关闭设备')
-                if (0 !== AteApi.SetupDutPower(0, setting.limit_min,setting.limit_max)) {
+                if (0 !== AteApi.SetupDutPower(0, setting.limit_min, setting.limit_max)) {
                     console.log("关闭电源失败.");
-                }else{
+                } else {
                     console.log('关闭电源成功')
                 }
                 if (0 !== AteApi.CloseDevice()) {
@@ -290,17 +301,18 @@ function createWindow() {
     });
 
     let hadSetupArr = [];
+
     //用户停止测试
-    function stopTest(){
-        for(let i=0;i<hadSetupArr.length;i++){
+    function stopTest() {
+        for (let i = 0; i < hadSetupArr.length; i++) {
             //选抽屉
-            if (0 !== AteApi.SelectDrawer(hadSetupArr[i])) {
+            if (!isDev && 0 !== AteApi.SelectDrawer(hadSetupArr[i])) {
                 console.log('%d-选抽屉失败', hadSetupArr[i]);
-            }else{
+            } else {
                 console.log('%d-选抽屉成功', hadSetupArr[i]);
             }
 
-            if(0 !==AteApi.SetupDutPower(0, setting.limit_min,setting.limit_max)){
+            if (0 !== AteApi.SetupDutPower(0, setting.limit_min, setting.limit_max)) {
                 console.log('关闭DTU电源失败')
             }
         }
@@ -327,7 +339,7 @@ function createWindow() {
 
 
     //用户开始正式测试
-    ipcMain.on('startFormalTest', async (e, selectedDrawers, drawers,testDuring) => {
+    ipcMain.on('startFormalTest', async (e, selectedDrawers, drawers, testDuring) => {
 
         console.log('setting', setting);
         console.log('selectedDrawers', selectedDrawers.length);
@@ -368,7 +380,7 @@ function createWindow() {
                 } else {
                     //选抽屉
 
-                    if (0 !== AteApi.SelectDrawer(selectedDrawers[i].index)) {
+                    if (!isDev && 0 !== AteApi.SelectDrawer(selectedDrawers[i].index)) {
                         console.log('%d-选抽屉失败', selectedDrawers[i].index);
                         openDialog({
                             type: 'error',
@@ -377,8 +389,8 @@ function createWindow() {
                         })
                         stopTest();
                         mainWindow.webContents.send('computeFailureCount')
-                        return  false;
-                    }else{
+                        return false;
+                    } else {
                         console.log('%d-选抽屉成功', selectedDrawers[i].index);
                     }
 
@@ -391,7 +403,7 @@ function createWindow() {
                         })
                         stopTest();
                         mainWindow.webContents.send('computeFailureCount');
-                        return  false;
+                        return false;
 
                     } else {
                         console.log('%d-设置电源成功', selectedDrawers[i].index)
@@ -400,8 +412,8 @@ function createWindow() {
                 }
             }
             let drawersFlags = 0;
-            const reverseDrawers =drawers;
-            for (let m = 0; m <reverseDrawers.length; m++) {
+            const reverseDrawers = drawers;
+            for (let m = 0; m < reverseDrawers.length; m++) {
                 let exitTBoxfilter = filter(reverseDrawers[m].tBox, i => {
                     return i.checked
                 });
@@ -409,15 +421,15 @@ function createWindow() {
                     drawersFlags |= 0x1 << m;
                 }
             }
-            console.log('testDuring',testDuring*60);
-            if (0 !== AteApi.StartMultiTest(setting.nor_interval, testDuring*60, drawersFlags, function (event) {
+            console.log('testDuring', testDuring * 60);
+            if (0 !== AteApi.StartMultiTest(setting.nor_interval, testDuring * 60, drawersFlags, function (event) {
 
                 if ("update" == event.event) {
                     let testDrawersfilter = filter(selectedDrawers, i => {
-                        return event.index==i.index;
+                        return event.index == i.index;
                     });
-                    console.log('event.index:',event.index)
-                    if(testDrawersfilter){
+                    console.log('event.index:', event.index)
+                    if (testDrawersfilter) {
                         console.log('%d-接收成功', event.index)
                         let result = []
                         for (let j = 0; j < event.duts.length; j++) {
@@ -434,17 +446,21 @@ function createWindow() {
                         mainWindow.webContents.send('sendInfoFromMain', {
                             drawerIndex: event.index,
                             result
-                        })
+                        });
+                        console.log('计算失败数')
+                        mainWindow.webContents.send('computeFailureCount')
                     }
-                if(event.index==20){
-                    mainWindow.webContents.send('computeFailureCount')
-                }
+                    if (event.index == 20) {
+
+                    }
 
 
                 } else if ("exit" == event.event) {
                     console.log('测试完成');
-                    stopTest();
+                    console.log('计算失败数');
                     mainWindow.webContents.send('computeFailureCount')
+                    stopTest();
+
 
                 } else {
                     console.log("undefinition event %s.", event.event);
@@ -457,13 +473,12 @@ function createWindow() {
                     title: 'Error',
                     message: '测试失败',
                 })
-                stopTest();
                 mainWindow.webContents.send('computeFailureCount')
-            }else{
+                stopTest();
+            } else {
                 console.log('开始计算时间');
                 mainWindow.webContents.send('startComputeTime')
             }
-
 
 
         }
@@ -500,6 +515,20 @@ function createWindow() {
         })
     });
 
+    //打开本地文件
+    ipcMain.on('openDefaultURL', (e,url) => {
+        dialog.showOpenDialog({
+            title: '选择csv文件',
+            filters: [
+                {name: 'csv', extensions: ['csv']},
+            ]
+        }, res => {
+            console.log('res', res);
+            if (res.length > 0) {
+                mainWindow.webContents.send('changeURLFromMain', res[0]);
+            }
+        })
+    })
     //打开本地文件
     ipcMain.on('openFile', (e) => {
         dialog.showOpenDialog({

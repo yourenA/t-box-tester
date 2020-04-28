@@ -1,6 +1,7 @@
 import React, {PureComponent, Fragment} from 'react';
 import './App.css';
 import moment from 'moment';
+import path from 'path';
 import Button from '@material-ui/core/Button';
 import FormGroup from '@material-ui/core/FormGroup';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
@@ -16,6 +17,7 @@ import MenuIcon from '@material-ui/icons/ArrowBack';
 import CancelScheduleSendIcon from '@material-ui/icons/CancelScheduleSend';
 import SaveIcon from '@material-ui/icons/Save';
 import Grid from '@material-ui/core/Grid';
+import logo from './logo.png';
 import {parseAsync} from 'json2csv';
 import Dialog from '@material-ui/core/Dialog';
 import TextField from '@material-ui/core/TextField';
@@ -95,6 +97,7 @@ class App extends PureComponent {
         super(props);
         this.timer = null
         this.state = {
+            version:'',
             drivers: [],
             selectDriver: '',
             errorOpen: false,
@@ -122,19 +125,19 @@ class App extends PureComponent {
             this.state.drawers.push({
                 index: i + 1,
                 name:Math.ceil((i+1)/4)+'-'+((i+1)%4===0?4:(i+1)%4),
-                checkedAllTBox: true,
-                tBox: [{name: 'T-Box-1', index: 1, sw: '',min:'', avg: '', max: '', checked:true, time: ''},
-                    {name: 'T-Box-2', index: 2, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-3', index: 3, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-4', index: 4, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-5', index: 5, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-6', index: 6, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-7', index: 7, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-8', index: 8, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-9', index: 9, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-10', index: 10, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-11', index: 11, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
-                    {name: 'T-Box-12', index: 12, sw: '',min:'', avg: '', max: '', checked: true, time: ''},
+                checkedAllTBox: false,
+                tBox: [{name: 'T-Box-1', index: 1, sw: '',min:'', avg: '', max: '', checked:false, time: ''},
+                    {name: 'T-Box-2', index: 2, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-3', index: 3, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-4', index: 4, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-5', index: 5, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-6', index: 6, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-7', index: 7, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-8', index: 8, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-9', index: 9, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-10', index: 10, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-11', index: 11, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 'T-Box-12', index: 12, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
                 ]
             })
         }
@@ -145,6 +148,14 @@ class App extends PureComponent {
         const that = this;
         ipcRenderer.send('getDrivers')
         ipcRenderer.send('getSetting')
+        ipcRenderer.send('getVersion');
+        ipcRenderer.on('getVersionFromMain',(event, version) => {
+            console.log('version', version)
+            that.setState({
+                version:version
+            })
+        });
+
         ipcRenderer.on('getExePathFromMain', function (event, exePath) {
             console.log('exePath', exePath)
         });
@@ -174,45 +185,7 @@ class App extends PureComponent {
         });
 
         ipcRenderer.on('exportCSVFromMain2', (event, message) => {
-            let opts = {fields: ['drawer_name','tBox_name', 'time', 'sw', 'min(mA)','avg(mA)', 'max(mA)']};
-            let csvContent = [];
-            for (let i = 0; i < that.state.drawers.length; i++) {
-                for(let j=0;j<that.state.drawers[i].tBox.length;j++){
-                    if (that.state.drawers[i].tBox[j].checked) {
-                        csvContent.push({
-                            drawer_name: that.state.drawers[i].name,
-                            tBox_name: that.state.drawers[i].tBox[j].name,
-                            time: that.state.drawers[i].tBox[j].time,
-                            sw: that.state.drawers[i].tBox[j].sw,
-                            [`min(mA)`]: that.state.drawers[i].tBox[j].min,
-                            [`avg(mA)`]: that.state.drawers[i].tBox[j].avg,
-                            [`max(mA)`]: that.state.drawers[i].tBox[j].max
-                        })
-                    }
-                }
-
-            }
-            console.log('csvContent', csvContent)
-            parseAsync(csvContent, opts).then(csv => {
-                fs.writeFile(message, csv,  { 'encoding ': 'utf-8' },err => {
-                    if (err) {
-                        console.log('err', err)
-                        ipcRenderer.send('open-dialog', {
-                            type: "error",
-                            title: "Error",
-                            message: err.toString()
-                        });
-                        return false
-                    }
-                    ;
-                    console.log('导出成功')
-                    ipcRenderer.send('open-dialog', {
-                        type: "info",
-                        title: "Success",
-                        message: '导出CSV成功'
-                    });
-                });
-            }).catch(err => console.error(err));
+            that.exportCSVFile(message)
         })
 
         ipcRenderer.on('sendInfoFromMain', (event, msg) => {
@@ -340,6 +313,56 @@ class App extends PureComponent {
             this.exportCSV()
         })
 
+    }
+    exportCSVFile=(message,auto)=>{
+        const that=this;
+        let opts = {fields: ['drawer_name','tBox_name', 'time', 'sw', 'min(mA)','avg(mA)', 'max(mA)']};
+        let csvContent = [];
+        for (let i = 0; i < that.state.drawers.length; i++) {
+            for(let j=0;j<that.state.drawers[i].tBox.length;j++){
+                if (that.state.drawers[i].tBox[j].checked) {
+                    csvContent.push({
+                        drawer_name: that.state.drawers[i].name,
+                        tBox_name: that.state.drawers[i].tBox[j].name,
+                        time: that.state.drawers[i].tBox[j].time,
+                        sw: that.state.drawers[i].tBox[j].sw,
+                        [`min(mA)`]: that.state.drawers[i].tBox[j].min,
+                        [`avg(mA)`]: that.state.drawers[i].tBox[j].avg,
+                        [`max(mA)`]: that.state.drawers[i].tBox[j].max
+                    })
+                }
+            }
+
+        }
+        console.log('csvContent', csvContent)
+        parseAsync(csvContent, opts).then(csv => {
+            fs.writeFile(message, csv,  { 'encoding ': 'utf-8' },err => {
+                if (err) {
+                    console.log('err', err)
+                    ipcRenderer.send('open-dialog', {
+                        type: "error",
+                        title: "Error",
+                        message: err.toString()
+                    });
+                    return false
+                };
+                console.log('导出成功');
+                if(!auto){
+                    ipcRenderer.send('open-dialog', {
+                        type: "info",
+                        title: "Success",
+                        message: '导出CSV成功'
+                    });
+                }else{
+                    ipcRenderer.send('open-dialog', {
+                        type: "info",
+                        title: "Success",
+                        message: '测试结束，导出CSV成功'
+                    });
+                }
+
+            });
+        }).catch(err => console.error(err));
     }
     componentWillUnmount() {
         if(this.timer){
@@ -523,13 +546,54 @@ class App extends PureComponent {
                         clearInterval(that.timerOfLeft)
                         that.timerOfLeft=null
                     }
+                    let defaultPath=localStorage.getItem('defaultPath');
+                    fs.exists(defaultPath, function(exists) {
+                        if(exists){
+                            that.exportCSVFile(defaultPath,true);
+                        }else{
+                            ipcRenderer.send('open-dialog', {
+                                type: "info",
+                                title: "Info",
+                                message: '测试结束,自动导出CSV失败，请确认自动导出路径是否正确'
+                            });
+                        }
+                    });
 
                     // ipcRenderer.send('stopTest');
                 }
             })
         },1000)
     }
+    checkedRowAll=(event,index)=>{
+        console.log('event', event.target.checked)
+        console.log('index',index)
+        for(let i=(index-1)*4+1;i<=index*4;i++){
+            let nowDrawer = this.state.drawers[i-1];
+            nowDrawer.checkedAllTBox = event.target.checked;
+            this.setState({
+                drawers: [...this.state.drawers]
+            }, function () {
+                if (this.state.drawers[i-1].checkedAllTBox) {
+                    for (let j = 0; j < this.state.drawers[i-1].tBox.length; j++) {
+                        this.state.drawers[i-1].tBox[j].checked = true;
 
+                    }
+                } else {
+                    for (let j = 0; j < this.state.drawers[i-1].tBox.length; j++) {
+                        this.state.drawers[i-1].tBox[j].checked = false;
+
+                    }
+                }
+                this.setState({
+                    drawers: [...this.state.drawers]
+                },function () {
+                    this.checkedAllTBoxState()
+
+                })
+            })
+        }
+
+    }
     render() {
         let  testTBoxCount=0;
         for(let i=0;i<this.state.drawers.length;i++){
@@ -567,50 +631,99 @@ class App extends PureComponent {
                         </Typography>
 
 
+
                     </Toolbar>
+                    <div className={'appBar-title'}>
+                        <Typography variant="h5" >
+
+                            广州华望-TBox老化测试系统-V{this.state.version}
+                        </Typography>
+                    </div>
                 </AppBar>
                 <Grid container spacing={3} className={'pre-box'}>
                     <Grid item xs={8}>
                         <div className={'table-content'}>
+                            <div className="drawers-content">
+                                <div className="drawers-left-content">
+                                    <div className="left-check">
+                                        <Checkbox
+                                            color={'primary'}
+                                            disabled={this.state.isTesting}
+                                            onChange={(event) => this.checkedRowAll(event,1)}
+                                        />
+                                    </div>
+                                    <div className="left-check">
+                                        <Checkbox
+                                            color={'primary'}
+                                            disabled={this.state.isTesting}
+                                            onChange={(event) => this.checkedRowAll(event,2)}
+                                        />
+                                    </div>
+                                    <div className="left-check">
+                                        <Checkbox
+                                            color={'primary'}
+                                            disabled={this.state.isTesting}
+                                            onChange={(event) => this.checkedRowAll(event,3)}
 
-                            <div style={{marginTop: '12px'}} className={'drawers'}>
-                                {
-                                    this.state.drawers.map((item, index) => {
-                                        let selectTBoxLenght = filter(item.tBox, (o) => {
-                                            return o.checked
-                                        }).length;
-                                        let hasError=false;
-                                        for(let i=0;i<item.tBox.length;i++){
-                                            let row2=item.tBox[i];
-                                            if(row2.checked&&
-                                                row2.time&&(Number(row2.sw)===0&&row2.checked
-                                                )){
-                                                hasError=true;
-                                                break;
+                                        />
+                                    </div>
+                                    <div className="left-check">
+                                        <Checkbox
+                                            color={'primary'}
+                                            disabled={this.state.isTesting}
+                                            onChange={(event) => this.checkedRowAll(event,4)}
 
+                                        />
+                                    </div>
+                                    <div className="left-check">
+                                        <Checkbox
+                                            color={'primary'}
+                                            disabled={this.state.isTesting}
+                                            onChange={(event) => this.checkedRowAll(event,5)}
+
+                                        />
+                                    </div>
+                                </div>
+                                <div children={'drawers-right-content'} style={{marginTop: '12px'}} className={'drawers'}>
+                                    {
+                                        this.state.drawers.map((item, index) => {
+                                            let selectTBoxLenght = filter(item.tBox, (o) => {
+                                                return o.checked
+                                            }).length;
+                                            let hasError=false;
+                                            for(let i=0;i<item.tBox.length;i++){
+                                                let row2=item.tBox[i];
+                                                if(row2.checked&&
+                                                    row2.time&&(Number(row2.sw)===0&&row2.checked
+                                                    )){
+                                                    hasError=true;
+                                                    break;
+
+                                                }
                                             }
-                                        }
-                                        return (
-                                            <div  className={'drawersItem'} key={index}>
-                                                <Button
+                                            return (
+                                                <div  className={'drawersItem'} key={index}>
+                                                    <Button
 
-                                                    style={{width: '95%'}}
-                                                    onClick={() => {
-                                                        this.setState({
-                                                            nowDrawer: index,
-                                                        })
-                                                    }}
-                                                    variant="contained" size={"small"}
-                                                    color={index===this.state.nowDrawer?"primary":"default"}
-                                                >
-                                                    {item.name} ({selectTBoxLenght}) <span  className={`${hasError?'hasError':''} status`}></span>
-                                                </Button>
-                                            </div>
+                                                        style={{width: '95%'}}
+                                                        onClick={() => {
+                                                            this.setState({
+                                                                nowDrawer: index,
+                                                            })
+                                                        }}
+                                                        variant="contained" size={"small"}
+                                                        color={index===this.state.nowDrawer?"primary":"default"}
+                                                    >
+                                                        {item.name} ({selectTBoxLenght}) <span  className={`${hasError?'hasError':''} status`}></span>
+                                                    </Button>
+                                                </div>
 
-                                        )
-                                    })
-                                }
+                                            )
+                                        })
+                                    }
+                                </div>
                             </div>
+
                             {this.state.drawers.map((row, index) => {
                                 return <Typography
                                     key={index}

@@ -1,6 +1,7 @@
 import React, {PureComponent, Fragment} from 'react';
 import stats from './067-stats.png';
 import lottery from './130-lottery.png';
+import logo from './logo.png';
 import './App.css';
 import Drawer from "@material-ui/core/Drawer";
 import FormControl from "@material-ui/core/FormControl";
@@ -15,11 +16,15 @@ class App extends PureComponent {
     constructor(props) {
         super(props);
         this.state = {
-            setting:{}
+            setting:{
+                version:'',
+                url:''
+            }
         };
     }
 
     componentDidMount() {
+        console.log('ipcRenderer',ipcRenderer)
         console.log('componentDidMount in home');
         let setting=localStorage.getItem('setting');
         if(setting){
@@ -44,31 +49,83 @@ class App extends PureComponent {
                 ipcRenderer.send('setSetting',this.state.setting);
             })
         }
+        const that=this;
+        ipcRenderer.send('getVersion');
+        ipcRenderer.on('getVersionFromMain',(event, version) => {
+            console.log('version', version)
+            that.setState({
+                version:version
+            })
+        });
+
+        let defaultPath=localStorage.getItem('defaultPath');
+        if(defaultPath){
+            this.setState({
+                url:defaultPath
+            })
+            ipcRenderer.send('getDefaultPath',defaultPath);
+        }else{
+            // ipcRenderer.send('getURL');
+        }
+        // ipcRenderer.on('getExePathFromMain', function (event, exePath) {
+        //     console.log('exePath', exePath);
+        //     that.setState({
+        //         url:exePath
+        //     })
+        // });
+        ipcRenderer.on('changeURLFromMain', function (event, path) {
+            console.log('path', path);
+            that.setState({
+                url:path,
+            })
+            localStorage.setItem('defaultPath',path);
+            ipcRenderer.send('getDefaultPath',path);
+            ipcRenderer.send('open-dialog', {
+                type: "info",
+                title: "Success",
+                message: '更改自动导出目录成功'
+            });
+        });
+
     }
     onChange=(event,type)=>{
-        if(event.target.value<=0){
-            ipcRenderer.send('open-dialog', {
-                type: "error",
-                title: "Error",
-                message: '数值必须大于0'
-            });
-        }else{
-            this.setState({
-                setting:{
-                    ...this.state.setting,
-                    [type]:Number(event.target.value)
-                }
-            })
-        }
+        this.setState({
+            setting:{
+                ...this.state.setting,
+                [type]:Number(event.target.value)
+            }
+        })
     }
     saveSetting=()=>{
+        for(let key in this.state.setting){
+            if(!Boolean(this.state.setting[key]) || this.state.setting[key]<=0){
+                ipcRenderer.send('open-dialog', {
+                    type: "error",
+                    title: "Error",
+                    message: '设置数值必须大于0'
+                });
+                return false
+            }
+        }
+        console.log(this.state.setting);
         localStorage.setItem('setting',JSON.stringify(this.state.setting));
         ipcRenderer.send('setSetting',this.state.setting);
+        ipcRenderer.send('open-dialog', {
+            type: 'info',
+            title: 'Success',
+            message: '保存设置成功.',
+        });
+    }
+    selectUrl=()=>{
+        ipcRenderer.send('openDefaultURL',this.state.url);
     }
     render() {
         return (
             <div>
                 <div className="App">
+                    <div className="project-name">
+                       广州华望-TBox老化测试系统-V{this.state.version}
+                    </div>
                     <div className="setting">
 
                         <IconButton  color="secondary"
@@ -191,6 +248,7 @@ class App extends PureComponent {
 
                             </div>
                         </div>
+
                         <Button
                             color={'primary'}
                             style={{width: '100%'}}
@@ -199,6 +257,20 @@ class App extends PureComponent {
                         >
                             保存设置
                         </Button>
+                        <div style={{marginTop:'15px'}}>
+                            <p className={'title'} style={{display:'block'}} >自动导出CSV目录 : </p>
+                            <div className={'formContent'} style={{width:'100%'}}>
+                                <FormControl  style={{width:'100%'}}>
+                                    <TextField
+                                        readOnly
+                                        style={{width:'100%',cursor:'pointer'}}
+                                        value={this.state.url}
+                                        onClick={this.selectUrl}
+                                    />
+                                </FormControl>
+
+                            </div>
+                        </div>
                     </div>
                 </Drawer>
             </div>

@@ -13,6 +13,7 @@ import MuiAlert from '@material-ui/lab/Alert';
 import IconButton from '@material-ui/core/IconButton';
 import ErrorOutlineIcon from '@material-ui/icons/ErrorOutline';
 import MenuIcon from '@material-ui/icons/ArrowBack';
+import logo from './logo.png';
 import SettingsIcon from '@material-ui/icons/Settings';
 import SaveIcon from '@material-ui/icons/Save';
 import Grid from '@material-ui/core/Grid';
@@ -80,6 +81,7 @@ class App extends PureComponent {
     constructor(props) {
         super(props);
         this.state = {
+            version:'',
             drivers: [],
             selectDriver: '',
             errorOpen: false,
@@ -112,7 +114,15 @@ class App extends PureComponent {
         const that = this;
         this.checkedAllState()
         ipcRenderer.send('getDrivers')
-        ipcRenderer.send('getSetting')
+        ipcRenderer.send('getSetting');
+        ipcRenderer.send('getVersion');
+        ipcRenderer.on('getVersionFromMain',(event, version) => {
+            console.log('version', version)
+            that.setState({
+                version:version
+            })
+        });
+
         ipcRenderer.on('getExePathFromMain', function (event, exePath) {
             console.log('exePath',exePath)
         });
@@ -379,6 +389,12 @@ class App extends PureComponent {
 
 
                     </Toolbar>
+                    <div className={'appBar-title'}>
+                        <Typography variant="h5" >
+
+                            广州华望-TBox老化测试系统-V{this.state.version}
+                        </Typography>
+                    </div>
 
                 </AppBar>
                 <Grid container spacing={3} className={'pre-box'}>
