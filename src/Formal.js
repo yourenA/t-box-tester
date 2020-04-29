@@ -357,7 +357,7 @@ class App extends PureComponent {
                     ipcRenderer.send('open-dialog', {
                         type: "info",
                         title: "Success",
-                        message: '测试结束，导出CSV成功'
+                        message: `测试结束，导出CSV成功\n文件目录:${message}`
                     });
                 }
 
@@ -549,7 +549,7 @@ class App extends PureComponent {
                     let defaultPath=localStorage.getItem('defaultPath');
                     fs.exists(defaultPath, function(exists) {
                         if(exists){
-                            that.exportCSVFile(defaultPath,true);
+                            that.exportCSVFile(defaultPath+`\\${moment().format("YYYY-MM-DD_HHmmss")}.csv`,true);
                         }else{
                             ipcRenderer.send('open-dialog', {
                                 type: "info",

@@ -519,9 +519,7 @@ function createWindow() {
     ipcMain.on('openDefaultURL', (e,url) => {
         dialog.showOpenDialog({
             title: '选择csv文件',
-            filters: [
-                {name: 'csv', extensions: ['csv']},
-            ]
+            properties:['openDirectory']
         }, res => {
             console.log('res', res);
             if (res.length > 0) {
