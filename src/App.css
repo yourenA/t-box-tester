@@ -240,6 +240,10 @@ html,body{
 
 }
 
+.hasSuccess{
+    background: #29b720;
+}
+
 .cicle{
     width:10px;
     height: 10px;

@@ -274,6 +274,7 @@ function createWindow() {
                 mainWindow.webContents.send('changeStart', false);
             } else if ("exit" == event.event) {
                 console.log('测试结束，关闭设备')
+                mainWindow.webContents.send('computeFailureCount')
                 if (0 !== AteApi.SetupDutPower(0, setting.limit_min, setting.limit_max)) {
                     console.log("关闭电源失败.");
                 } else {
@@ -399,7 +400,7 @@ function createWindow() {
                         openDialog({
                             type: 'error',
                             title: 'Error',
-                            message: `设置"抽屉${selectedDrawers[i].index}"电源失败，请先解决问题后再重试`,
+                            message: `设置"${selectedDrawers[i].name}"电源失败，请先解决问题后再重试`,
                         })
                         stopTest();
                         mainWindow.webContents.send('computeFailureCount');

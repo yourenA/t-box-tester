@@ -108,12 +108,13 @@ class App extends PureComponent {
             isTesting: false,
             drawerOpen: false,
             selectTBox: false,
+            init:true,
             nowTab: 0,
             errorName: '',
             setting: {},
             drawers: [],
             selectedDrawers: [],
-            nowDrawer: 0,
+            nowDrawer: 2,
             testTBoxFailureCount:'',
             testDuring:1,
             leftTime:0
@@ -126,18 +127,18 @@ class App extends PureComponent {
                 index: i + 1,
                 name:Math.ceil((i+1)/4)+'-'+((i+1)%4===0?4:(i+1)%4),
                 checkedAllTBox: false,
-                tBox: [{name: 'T-Box-1', index: 1, sw: '',min:'', avg: '', max: '', checked:false, time: ''},
-                    {name: 'T-Box-2', index: 2, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-3', index: 3, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-4', index: 4, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-5', index: 5, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-6', index: 6, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-7', index: 7, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-8', index: 8, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-9', index: 9, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-10', index: 10, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-11', index: 11, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
-                    {name: 'T-Box-12', index: 12, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                tBox: [{name: 't-box-1', index: 1, sw: '',min:'', avg: '', max: '', checked:false, time: ''},
+                    {name: 't-box-2', index: 2, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-3', index: 3, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-4', index: 4, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-5', index: 5, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-6', index: 6, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-7', index: 7, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-8', index: 8, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-9', index: 9, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-10', index: 10, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-11', index: 11, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
+                    {name: 't-box-12', index: 12, sw: '',min:'', avg: '', max: '', checked: false, time: ''},
                 ]
             })
         }
@@ -222,12 +223,13 @@ class App extends PureComponent {
             let  testTBoxFailureCount=0;
             for(let i=0;i<this.state.drawers.length;i++){
                 const failureCount=filter(this.state.drawers[i].tBox,row=>{
-                    return  row.checked&& Number(row.sw)===0
+                    return  row.checked&& (Number(row.sw)===0||Number(row.avg)<Number(this.state.setting.average_min)||Number(row.avg)>Number(this.state.setting.average_max))
                 }).length;
                 testTBoxFailureCount=testTBoxFailureCount+failureCount
             }
             that.setState({
-                testTBoxFailureCount:testTBoxFailureCount
+                testTBoxFailureCount:testTBoxFailureCount,
+                init:false
             })
 
 
@@ -270,7 +272,7 @@ class App extends PureComponent {
             }
         })
 
-        Mousetrap.bind('ctrl+d', () => {
+        Mousetrap.bind('f5', () => {
             if (this.state.isTesting) {
                 return;
             }
@@ -293,7 +295,7 @@ class App extends PureComponent {
                 ipcRenderer.send('open-dialog', {
                     type: "error",
                     title: "Error",
-                    message: '请先选择T-Box'
+                    message: '请先选择t-box'
                 });
                 return
             }
@@ -306,7 +308,7 @@ class App extends PureComponent {
 
         })
 
-        Mousetrap.bind('ctrl+e', () => {
+        Mousetrap.bind('f6', () => {
             if (this.state.isTesting) {
                 return;
             }
@@ -316,14 +318,14 @@ class App extends PureComponent {
     }
     exportCSVFile=(message,auto)=>{
         const that=this;
-        let opts = {fields: ['drawer_name','tBox_name', 'time', 'sw', 'min(mA)','avg(mA)', 'max(mA)']};
+        let opts = {fields: ['drawer_name','t_box_name', 'time', 'sw', 'min(mA)','avg(mA)', 'max(mA)']};
         let csvContent = [];
         for (let i = 0; i < that.state.drawers.length; i++) {
             for(let j=0;j<that.state.drawers[i].tBox.length;j++){
                 if (that.state.drawers[i].tBox[j].checked) {
                     csvContent.push({
-                        drawer_name: that.state.drawers[i].name,
-                        tBox_name: that.state.drawers[i].tBox[j].name,
+                        drawer_name: "drawer-"+that.state.drawers[i].name,
+                        t_box_name: that.state.drawers[i].tBox[j].name,
                         time: that.state.drawers[i].tBox[j].time,
                         sw: that.state.drawers[i].tBox[j].sw,
                         [`min(mA)`]: that.state.drawers[i].tBox[j].min,
@@ -568,6 +570,10 @@ class App extends PureComponent {
         console.log('event', event.target.checked)
         console.log('index',index)
         for(let i=(index-1)*4+1;i<=index*4;i++){
+            //不选第一第二个
+            if(i===1||i===2){
+                continue
+            }
             let nowDrawer = this.state.drawers[i-1];
             nowDrawer.checkedAllTBox = event.target.checked;
             this.setState({
@@ -691,20 +697,29 @@ class App extends PureComponent {
                                                 return o.checked
                                             }).length;
                                             let hasError=false;
+                                            let successCount=0;
                                             for(let i=0;i<item.tBox.length;i++){
                                                 let row2=item.tBox[i];
                                                 if(row2.checked&&
-                                                    row2.time&&(Number(row2.sw)===0&&row2.checked
-                                                    )){
+                                                    row2.time&&(Number(row2.sw)===0||Number(row2.avg)<Number(this.state.setting.average_min)||Number(row2.avg)>Number(this.state.setting.average_max))
+                                                    ){
                                                     hasError=true;
                                                     break;
 
                                                 }
                                             }
+                                            for(let i=0;i<item.tBox.length;i++){
+                                                let row2=item.tBox[i];
+                                                if(row2.checked&&
+                                                    row2.time&&(Number(row2.sw)===1&&Number(row2.avg)>=Number(this.state.setting.average_min)&&Number(row2.avg)<=Number(this.state.setting.average_max))
+                                                    ){
+                                                    successCount=successCount+1
+                                                }
+                                            }
                                             return (
                                                 <div  className={'drawersItem'} key={index}>
                                                     <Button
-
+                                                        disabled={ index===0  || index===1}
                                                         style={{width: '95%'}}
                                                         onClick={() => {
                                                             this.setState({
@@ -714,7 +729,7 @@ class App extends PureComponent {
                                                         variant="contained" size={"small"}
                                                         color={index===this.state.nowDrawer?"primary":"default"}
                                                     >
-                                                        {item.name} ({selectTBoxLenght}) <span  className={`${hasError?'hasError':''} status`}></span>
+                                                        {item.name} ({selectTBoxLenght}) <span  className={`${hasError?'hasError': ((successCount===selectTBoxLenght&&successCount!==0))?'hasSuccess':''} status`}></span>
                                                     </Button>
                                                 </div>
 
@@ -740,14 +755,15 @@ class App extends PureComponent {
                                                     <TableRow>
                                                         <StyledTableCell>
                                                             <Checkbox
-                                                                disabled={this.state.isTesting}
+                                                                disabled={this.state.isTesting || index===0  || index===1}
                                                                 checked={this.state.drawers[this.state.nowDrawer] && this.state.drawers[this.state.nowDrawer].checkedAllTBox}
                                                                 onChange={() => this.checkedAll()}
                                                             />
                                                         </StyledTableCell>
-                                                        <StyledTableCell>TBox名称</StyledTableCell>
+                                                        <StyledTableCell>t-box名称</StyledTableCell>
                                                         <StyledTableCell align="left">时间</StyledTableCell>
                                                         <StyledTableCell align="left">状态</StyledTableCell>
+                                                        <StyledTableCell align="left">电源</StyledTableCell>
                                                         <StyledTableCell align="left">最小电流(mA)</StyledTableCell>
                                                         <StyledTableCell align="left">平均电流(mA)</StyledTableCell>
                                                         <StyledTableCell align="left">峰值电流(mA)</StyledTableCell>
@@ -758,12 +774,12 @@ class App extends PureComponent {
                                                         return (
                                                             <StyledTableRow
                                                                 className={`${row2.checked ? 'table-checked' : ''}
-                                                                  ${row2.time&&Number(row2.sw)===0&&row2.checked ? 'error-row' : ''}`}
+                                                                  ${row2.time&&(Number(row.sw)===0||Number(row.avg)<Number(this.state.setting.average_min)||Number(row.avg)>Number(this.state.setting.average_max))&&row2.checked ? 'error-row' : ''}`}
                                                                 role="checkbox" key={row2.name}>
                                                                 <StyledTableCell padding="checkbox">
                                                                     <Checkbox
                                                                         color="primary"
-                                                                        disabled={this.state.isTesting}
+                                                                        disabled={this.state.isTesting  || index===0  || index===1}
                                                                         checked={row2.checked}
                                                                         onChange={() => this.handleChangeTBoxCheck(index2)}
                                                                         value={row2.key}
@@ -775,7 +791,9 @@ class App extends PureComponent {
                                                                 <StyledTableCell
                                                                     align="left">{row2.time}</StyledTableCell>
 
-                                                                <StyledTableCell align="left">{row2.sw.toString()&&<div className={`cicle ${row2.sw===0?"error-cicle":"success-cicle"}`}></div>}</StyledTableCell>
+                                                                <StyledTableCell align="left">{row2.sw.toString()&&<div className={`cicle ${(Number(row2.sw)===0||Number(row2.avg)<Number(this.state.setting.average_min)||Number(row2.avg)>Number(this.state.setting.average_max))?"error-cicle":"success-cicle"}`}></div>}</StyledTableCell>
+                                                                <StyledTableCell
+                                                                    align="left">{row2.sw}</StyledTableCell>
                                                                 <StyledTableCell
                                                                     align="left">{row2.min}</StyledTableCell>
                                                                 <StyledTableCell
@@ -856,7 +874,7 @@ class App extends PureComponent {
                             </div>
                         {/*    <div className="drivers">
                                 <p className={'title'} style={{marginTop: '6px'}}>选择抽屉 <span
-                                    style={{fontSize: '14px', color: '#3f51b5'}}>括号数字表示已选T-Box个数
+                                    style={{fontSize: '14px', color: '#3f51b5'}}>括号数字表示已选t-box个数
 
                                 </span>
                                     <Checkbox
@@ -895,7 +913,7 @@ class App extends PureComponent {
                                 <Button variant="contained" color="primary"
                                         disabled={this.state.isTesting}
                                         style={{marginRight: '12px',marginBottom: '12px'}}
-                                        title={'ctrl+d 快捷键可以开始测试'}
+                                        title={'(F5) 快捷键可以开始测试'}
                                         onClick={() => {
                                             if (!this.state.selectDriver) {
                                                 ipcRenderer.send('open-dialog', {
@@ -916,7 +934,7 @@ class App extends PureComponent {
                                                 ipcRenderer.send('open-dialog', {
                                                     type: "error",
                                                     title: "Error",
-                                                    message: '请先选择T-Box'
+                                                    message: '请先选择t-box'
                                                 });
                                                 return
                                             }
@@ -925,16 +943,16 @@ class App extends PureComponent {
                                                 selectedDrawers: afterFilter
                                             })
                                         }} startIcon={<PlayCircleFilledWhiteIcon/>}>
-                                    开始测试(ctrl+d)
+                                    开始测试(F5)
                                 </Button>
                                 <Button
-                                    title={'ctrl+e 快捷键可以导出CSV'}
+                                    title={'F6 快捷键可以导出CSV'}
                                     style={{marginBottom: '12px'}}
 
                                     disabled={this.state.isTesting} variant="contained" color="primary"
                                     onClick={this.exportCSV}
                                     startIcon={<SaveIcon/>}>
-                                    导出CSV(ctrl+e)
+                                    导出CSV(F6)
                                 </Button>
 
                                 {(this.state.isTesting|| this.state.isTesting===null)&&
@@ -1014,7 +1032,7 @@ class App extends PureComponent {
                         })
                     }}
                 >
-                    <DialogTitle>选择"{this.state.drawers[this.state.nowDrawer] && this.state.drawers[this.state.nowDrawer].name}"T-Box
+                    <DialogTitle>选择"{this.state.drawers[this.state.nowDrawer] && this.state.drawers[this.state.nowDrawer].name}"t-box
                         <Checkbox
                             disabled={this.state.isTesting}
                             checked={this.state.drawers[this.state.nowDrawer] && this.state.drawers[this.state.nowDrawer].checkedAllTBox}

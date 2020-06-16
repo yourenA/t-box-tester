@@ -93,18 +93,18 @@ class App extends PureComponent {
             errorName: '',
             setting:{},
             failureCount:'',
-            tBox: [{name: 'T-Box-1', index: 1, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-2', index: 2,  sw: '',min:'',avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-3', index: 3, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-4', index: 4, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-5', index: 5, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-6', index: 6, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-7', index: 7, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-8', index: 8, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-9', index: 9, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-10', index: 10, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-11', index: 11, sw: '',min:'', avg: '', max: '', checked: true,time:''},
-                {name: 'T-Box-12', index: 12, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+            tBox: [{name: 't-box-1', index: 1, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-2', index: 2,  sw: '',min:'',avg: '', max: '', checked: true,time:''},
+                {name: 't-box-3', index: 3, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-4', index: 4, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-5', index: 5, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-6', index: 6, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-7', index: 7, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-8', index: 8, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-9', index: 9, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-10', index: 10, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-11', index: 11, sw: '',min:'', avg: '', max: '', checked: true,time:''},
+                {name: 't-box-12', index: 12, sw: '',min:'', avg: '', max: '', checked: true,time:''},
             ]
         };
     }
@@ -203,8 +203,9 @@ class App extends PureComponent {
             }
         })
         ipcRenderer.on('computeFailureCount', (event) => {
+            console.log('computeFailureCount')
             const failureCount=filter(that.state.tBox,row=>{
-                return row.checked&& Number(row.sw)===0
+                return row.checked&& (Number(row.sw)===0||Number(row.avg)<Number(this.state.setting.average_min)||Number(row.avg)>Number(this.state.setting.average_max))
 
             }).length;
             that.setState({
@@ -218,7 +219,7 @@ class App extends PureComponent {
             })
         })
 
-        Mousetrap.bind('ctrl+d', () => {
+        Mousetrap.bind('f5', () => {
             if(this.state.isTesting){
                 return;
             }
@@ -237,14 +238,14 @@ class App extends PureComponent {
                 ipcRenderer.send('open-dialog', {
                     type: "error",
                     title: "Error",
-                    message: '请先选择T-Box'
+                    message: '请先选择t-box'
                 });
                 return
             }
             this.startTest()
         })
 
-        Mousetrap.bind('ctrl+e', () => {
+        Mousetrap.bind('f6', () => {
             if(this.state.isTesting){
                 return;
             }
@@ -415,6 +416,7 @@ class App extends PureComponent {
                                             <StyledTableCell>名称</StyledTableCell>
                                             <StyledTableCell align="left">时间</StyledTableCell>
                                             <StyledTableCell align="left">状态</StyledTableCell>
+                                            <StyledTableCell align="left">电源</StyledTableCell>
                                             <StyledTableCell align="left">最小电流(mA)</StyledTableCell>
                                             <StyledTableCell align="left">平均电流(mA)</StyledTableCell>
                                             <StyledTableCell align="left">峰值电流(mA)</StyledTableCell>
@@ -423,8 +425,7 @@ class App extends PureComponent {
                                     <TableBody>
                                         {this.state.tBox.map((row,index) => (
                                             <StyledTableRow className={`${row.checked ? 'table-checked' : ''}  
-                                            ${row.time&&Number(row.sw)===0&&row.checked
-                                             
+                                            ${(row.time&&(Number(row.sw)===0||Number(row.avg)<Number(this.state.setting.average_min)||Number(row.avg)>Number(this.state.setting.average_max))&&row.checked)
                                                 ? 'error-row' : ''}`}
                                                             role="checkbox" key={row.name}>
                                                 <StyledTableCell padding="checkbox">
@@ -440,7 +441,8 @@ class App extends PureComponent {
                                                     {row.name}
                                                 </StyledTableCell>
                                                 <StyledTableCell align="left">{row.time}</StyledTableCell>
-                                                <StyledTableCell align="left">{row.sw.toString()&&<div className={`cicle ${row.sw===0?"error-cicle":"success-cicle"}`}></div>}</StyledTableCell>
+                                                <StyledTableCell align="left">{row.sw.toString()&&<div className={`cicle ${(Number(row.sw)===0||Number(row.avg)<Number(this.state.setting.average_min)||Number(row.avg)>Number(this.state.setting.average_max))?"error-cicle":"success-cicle"}`}></div>}</StyledTableCell>
+                                                <StyledTableCell align="left">{row.sw}</StyledTableCell>
                                                 <StyledTableCell align="left">{row.min}</StyledTableCell>
                                                 <StyledTableCell align="left">{row.avg}</StyledTableCell>
                                                 <StyledTableCell align="left">{row.max}</StyledTableCell>
@@ -506,7 +508,7 @@ class App extends PureComponent {
                                 <Button variant="contained" color="primary"
                                         disabled={this.state.isTesting}
                                         style={{marginRight: '12px',marginBottom: '12px'}}
-                                        title={'ctrl+d 快捷键可以开始测试'}
+                                        title={'(F5) 快捷键可以开始测试'}
                                         onClick={() => {
                                     if (!this.state.selectDriver) {
                                         ipcRenderer.send('open-dialog', {
@@ -523,7 +525,7 @@ class App extends PureComponent {
                                         ipcRenderer.send('open-dialog', {
                                             type: "error",
                                             title: "Error",
-                                            message: '请先选择T-Box'
+                                            message: '请先选择t-box'
                                         });
                                         return
                                     }
@@ -531,14 +533,14 @@ class App extends PureComponent {
                                         dialogOpen: true
                                     })
                                 }} startIcon={<PlayCircleFilledWhiteIcon/>}>
-                                    开始测试(ctrl+d)
+                                    开始测试(F5)
                                 </Button>
                                 <Button
                                     style={{marginBottom: '12px'}}
-                                    title={'ctrl+e 快捷键可以导出CSV'}
+                                    title={'(F5) 快捷键可以导出CSV'}
                                     disabled={this.state.isTesting} variant="contained" color="primary" onClick={this.exportCSV}
                                              startIcon={<SaveIcon/>}>
-                                    导出CSV(ctrl+e)
+                                    导出CSV(F6)
                                 </Button>
 
                             </div>

@@ -38,6 +38,8 @@ class App extends PureComponent {
             const originData={
                 "limit_max": 850,
                 "limit_min": 800,
+                "average_max": 820,
+                "average_min": 810,
                 "pre_interval": 2,
                 "nor_interval": 30,
                 "nor_duration": 120
@@ -156,7 +158,7 @@ class App extends PureComponent {
                              }}>
                             <img src={stats} className="App-logo" alt="logo"/>
                             <p>
-                                老化测试
+                                正式测试
                             </p>
 
                         </div>
@@ -169,39 +171,7 @@ class App extends PureComponent {
                 }}>
                     <div className={'drawer-content'}>
                         <div className="drivers">
-                            <p className={'title'} style={{width:'110px',textAlign:'right'}}>limit_max : </p>
-                            <div className={'formContent'}>
-                                <FormControl >
-                                    <TextField
-                                        type="number"
-                                        value={this.state.setting.limit_max?Number(this.state.setting.limit_max):0}
-                                        InputProps={{
-                                            endAdornment: <InputAdornment position="end">(mA)</InputAdornment>,
-                                        }}
-                                        onChange={(event)=>{this.onChange(event,'limit_max') }}
-                                    />
-                                </FormControl>
-
-                            </div>
-                        </div>
-                        <div className="drivers">
-                            <p className={'title'}  style={{width:'110px',textAlign:'right'}}>limit_min : </p>
-                            <div className={'formContent'}>
-                                <FormControl >
-                                    <TextField
-                                        type="number"
-                                        value={this.state.setting.limit_min?Number(this.state.setting.limit_min):0}
-                                        InputProps={{
-                                            endAdornment: <InputAdornment position="end">(mA)</InputAdornment>,
-                                        }}
-                                        onChange={(event)=>{this.onChange(event,'limit_min') }}
-                                    />
-                                </FormControl>
-
-                            </div>
-                        </div>
-                        <div className="drivers">
-                            <p className={'title'}  style={{width:'110px',textAlign:'right'}}>pre_interval : </p>
+                            <p className={'title'}  style={{width:'110px',textAlign:'right'}}>预测试间隔 : </p>
                             <div className={'formContent'}>
                                 <FormControl >
                                     <TextField
@@ -217,7 +187,71 @@ class App extends PureComponent {
                             </div>
                         </div>
                         <div className="drivers">
-                            <p className={'title'}  style={{width:'110px',textAlign:'right'}}>nor_interval : </p>
+                            <p className={'title'} style={{width:'110px',textAlign:'right'}}>保护电流上限 : </p>
+                            <div className={'formContent'}>
+                                <FormControl >
+                                    <TextField
+                                        type="number"
+                                        value={this.state.setting.limit_max?Number(this.state.setting.limit_max):0}
+                                        InputProps={{
+                                            endAdornment: <InputAdornment position="end">(mA)</InputAdornment>,
+                                        }}
+                                        onChange={(event)=>{this.onChange(event,'limit_max') }}
+                                    />
+                                </FormControl>
+
+                            </div>
+                        </div>
+                        <div className="drivers">
+                            <p className={'title'}  style={{width:'110px',textAlign:'right'}}>保护电流下限 : </p>
+                            <div className={'formContent'}>
+                                <FormControl >
+                                    <TextField
+                                        type="number"
+                                        value={this.state.setting.limit_min?Number(this.state.setting.limit_min):0}
+                                        InputProps={{
+                                            endAdornment: <InputAdornment position="end">(mA)</InputAdornment>,
+                                        }}
+                                        onChange={(event)=>{this.onChange(event,'limit_min') }}
+                                    />
+                                </FormControl>
+
+                            </div>
+                        </div>
+                        <div className="drivers">
+                            <p className={'title'} style={{width:'110px',textAlign:'right'}}>平均电流上限 : </p>
+                            <div className={'formContent'}>
+                                <FormControl >
+                                    <TextField
+                                        type="number"
+                                        value={this.state.setting.average_max?Number(this.state.setting.average_max):0}
+                                        InputProps={{
+                                            endAdornment: <InputAdornment position="end">(mA)</InputAdornment>,
+                                        }}
+                                        onChange={(event)=>{this.onChange(event,'average_max') }}
+                                    />
+                                </FormControl>
+
+                            </div>
+                        </div>
+                        <div className="drivers">
+                            <p className={'title'}  style={{width:'110px',textAlign:'right'}}>平均电流下限 : </p>
+                            <div className={'formContent'}>
+                                <FormControl >
+                                    <TextField
+                                        type="number"
+                                        value={this.state.setting.average_min?Number(this.state.setting.average_min):0}
+                                        InputProps={{
+                                            endAdornment: <InputAdornment position="end">(mA)</InputAdornment>,
+                                        }}
+                                        onChange={(event)=>{this.onChange(event,'average_min') }}
+                                    />
+                                </FormControl>
+
+                            </div>
+                        </div>
+                        <div className="drivers">
+                            <p className={'title'}  style={{width:'110px',textAlign:'right'}}>正式测试间隔 : </p>
                             <div className={'formContent'}>
                                 <FormControl >
                                     <TextField
@@ -233,7 +267,7 @@ class App extends PureComponent {
                             </div>
                         </div>
                         <div className="drivers">
-                            <p className={'title'}  style={{width:'110px',textAlign:'right'}}>nor_duration : </p>
+                            <p className={'title'}  style={{width:'110px',textAlign:'right'}}>正式测试时长 : </p>
                             <div className={'formContent'}>
                                 <FormControl >
                                     <TextField
