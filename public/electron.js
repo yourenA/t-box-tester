@@ -386,7 +386,7 @@ function createWindow() {
                         openDialog({
                             type: 'error',
                             title: 'Error',
-                            message: `打开"抽屉${selectedDrawers[i].index}"失败，请先解决问题后再重试`,
+                            message: `打开"抽屉${selectedDrawers[i].name}"失败，请先解决问题后再重试`,
                         })
                         stopTest();
                         mainWindow.webContents.send('computeFailureCount')

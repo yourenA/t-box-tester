@@ -1,6 +1,6 @@
 {
   "name": "t-box-tester",
-  "version": "3.3.3",
+  "version": "3.3.4",
   "private": true,
   "description": "A minimal Electron application",
   "main": "public/electron.js",
