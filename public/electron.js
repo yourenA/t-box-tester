@@ -108,6 +108,7 @@ addUpdateMenuItems(helpMenu, 0)
 let setting = {}
 
 function createWindow() {
+    console.log('ready')
     // Create the browser window.
     mainWindow = new BrowserWindow({
         minWidth: 1200,
@@ -566,7 +567,9 @@ function openDialog(message) {
         message: message.message,
     })
 }
-
+console.log('before disableHardwareAcceleration')
+app.disableHardwareAcceleration()
+console.log('after disableHardwareAcceleration')
 app.on('ready', createWindow)
 
 app.on('window-all-closed', function () {
