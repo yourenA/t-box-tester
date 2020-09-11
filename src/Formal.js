@@ -234,6 +234,22 @@ class App extends PureComponent {
 
 
         })
+        ipcRenderer.on('autoExportCsv', (event) => {
+
+            let defaultPath=localStorage.getItem('defaultPath');
+            fs.exists(defaultPath, function(exists) {
+                if(exists){
+                    that.exportCSVFile(defaultPath+`\\${moment().format("YYYY-MM-DD_HHmmss")}.csv`,true);
+                }else{
+                    ipcRenderer.send('open-dialog', {
+                        type: "info",
+                        title: "Info",
+                        message: '测试结束,自动导出CSV失败，请确认自动导出路径是否正确'
+                    });
+                }
+            });
+
+        })
         ipcRenderer.on('changeStart', (event, bool) => {
             console.log('bool', bool)
             that.setState({
@@ -548,19 +564,6 @@ class App extends PureComponent {
                         clearInterval(that.timerOfLeft)
                         that.timerOfLeft=null
                     }
-                    let defaultPath=localStorage.getItem('defaultPath');
-                    fs.exists(defaultPath, function(exists) {
-                        if(exists){
-                            that.exportCSVFile(defaultPath+`\\${moment().format("YYYY-MM-DD_HHmmss")}.csv`,true);
-                        }else{
-                            ipcRenderer.send('open-dialog', {
-                                type: "info",
-                                title: "Info",
-                                message: '测试结束,自动导出CSV失败，请确认自动导出路径是否正确'
-                            });
-                        }
-                    });
-
                     // ipcRenderer.send('stopTest');
                 }
             })

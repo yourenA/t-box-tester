@@ -13,7 +13,7 @@ const {filter} = require('lodash')
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow; //mainWindow主窗口
 let preLibrary;
-let defaultPath=''
+let defaultPath = ''
 let template = [{
     label: '查看',
     submenu: [{
@@ -149,7 +149,7 @@ function createWindow() {
     }
     let exePath = path.dirname(app.getPath('exe'));
     console.log('exePath:', exePath);
-    defaultPath=exePath;
+    defaultPath = exePath;
     const menu = Menu.buildFromTemplate(template)
     Menu.setApplicationMenu(menu)
 
@@ -165,7 +165,7 @@ function createWindow() {
         // createMbus()
     })
 
-    ipcMain.on('getURL',(e)=>{
+    ipcMain.on('getURL', (e) => {
         let exePath = path.dirname(app.getPath('exe'));
         console.log('exePath:', exePath)
         mainWindow.webContents.send('getExePathFromMain', exePath);
@@ -185,7 +185,7 @@ function createWindow() {
 
     //获取defaultPath
     ipcMain.on('getDefaultPath', (e, path) => {
-        defaultPath=path
+        defaultPath = path
     });
 
 
@@ -284,6 +284,8 @@ function createWindow() {
                 if (0 !== AteApi.CloseDevice()) {
                     console.log("device close failure.");
                 }
+
+
             } else {
                 console.log("undefinition event %s.", event.event);
             }
@@ -305,7 +307,7 @@ function createWindow() {
     let hadSetupArr = [];
 
     //用户停止测试
-    function stopTest() {
+    function stopTest(codeIsZero) {
         for (let i = 0; i < hadSetupArr.length; i++) {
             //选抽屉
             if (!isDev && 0 !== AteApi.SelectDrawer(hadSetupArr[i])) {
@@ -329,6 +331,9 @@ function createWindow() {
             global.isTesting = false;
             mainWindow.webContents.send('changeStart', false);
             mainWindow.webContents.send('computeFailureCount')
+        }
+        if(codeIsZero){
+            mainWindow.webContents.send('autoExportCsv')
         }
     }
 
@@ -425,6 +430,7 @@ function createWindow() {
             }
             console.log('testDuring', testDuring * 60);
             if (0 !== AteApi.StartMultiTest(setting.nor_interval, testDuring * 60, drawersFlags, function (event) {
+                console.log('event.code', event.code)
 
                 if ("update" == event.event) {
                     let testDrawersfilter = filter(selectedDrawers, i => {
@@ -461,12 +467,19 @@ function createWindow() {
                     console.log('测试完成');
                     console.log('计算失败数');
                     mainWindow.webContents.send('computeFailureCount')
-                    stopTest();
 
+                    stopTest(event.code === 0);
+                    // if (event.code === 0) {
+                    //     mainWindow.webContents.send('autoExportCsv')
+                    // }
+                    // mainWindow.webContents.send('autoExportCsv')
 
                 } else {
                     console.log("undefinition event %s.", event.event);
                 }
+
+
+
 
             })) {
                 console.log('测试失败');
@@ -518,10 +531,10 @@ function createWindow() {
     });
 
     //打开本地文件
-    ipcMain.on('openDefaultURL', (e,url) => {
+    ipcMain.on('openDefaultURL', (e, url) => {
         dialog.showOpenDialog({
             title: '选择csv文件',
-            properties:['openDirectory']
+            properties: ['openDirectory']
         }, res => {
             console.log('res', res);
             if (res.length > 0) {
@@ -567,6 +580,7 @@ function openDialog(message) {
         message: message.message,
     })
 }
+
 console.log('before disableHardwareAcceleration')
 app.disableHardwareAcceleration()
 console.log('after disableHardwareAcceleration')
